@@ -2,12 +2,12 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { AnalysisReport } from '../types';
 
-// Use process.env.API_KEY as per guidelines
-const API_KEY = process.env.API_KEY;
+// Access API_KEY from import.meta.env for Vite projects
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 if (!API_KEY) {
   // This will be caught by the App component and shown to the user.
-  throw new Error("API_KEY environment variable is not set. Please configure it to use STREAKSENSE.");
+  throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your .env file and on your deployment platform (e.g., Vercel) to use STREAKSENSE.");
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });

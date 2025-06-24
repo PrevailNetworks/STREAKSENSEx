@@ -82,13 +82,14 @@ export interface PlayerData {
   position: string;
   imageUrl?: string; // Optional URL for player's image
   corePerformance: CorePerformanceData;
-  statcastValidation: StatcastMetric[];
+  statcastValidation: StatcastMetric[]; // Keep for potential use or if AI includes it and we want to parse it from verdict
   matchup: MatchupData;
   synthesis: SynthesisData;
   finalVerdict: {
     compositeHitProbability: number; 
   };
-  playerSpecificVerdict?: string;
+  // This string will now hold a comprehensive, Markdown-formatted multi-section analysis.
+  playerSpecificVerdict?: string; 
 }
 
 export interface HonorableMention {

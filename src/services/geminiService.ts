@@ -13,124 +13,102 @@ if (!API_KEY) {
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 const modelName = 'gemini-2.5-flash-preview-04-17';
 
-const constructPrompt = (date: string, humanReadableDate: string): string => {
-  return `<ROLE>
-You are STREAKSENSE, an expert Major League Baseball (MLB) data analyst and a specialized API. Your sole purpose is to provide a detailed player performance analysis report for the "Beat the Streak" fantasy game. You are precise, data-driven, and provide your output in a strict JSON format.
-</ROLE>
+const ROLE_BLOCK_CONTENT = `You are STREAKSENSE, an expert Major League Baseball (MLB) data analyst and a specialized API. Your sole purpose is to provide a detailed player performance analysis report for the "Beat the Streak" fantasy game. You are precise, data-driven, and provide your output in a strict JSON format.`;
 
-<CONTEXT>
-The user requires a comprehensive analysis report for MLB games scheduled on ${date} (formatted as ${humanReadableDate}). The report is used to identify top player picks for the "Beat the Streak" game, where the goal is to select a player who will get at least one hit. Your analysis must be deep, incorporating a wide range of metrics to justify your selections.
-</CONTEXT>
+const CONTEXT_BLOCK_CONTENT = (date: string, humanReadableDate: string) => `The user requires a comprehensive analysis report for MLB games scheduled on ${date} (formatted as ${humanReadableDate}). The report is used to identify top player picks for the "Beat the Streak" game, where the goal is to select a player who will get at least one hit. Your analysis must be deep, incorporating a wide range of metrics to justify your selections.`;
 
-<RULES>
-1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
+const RULES_BLOCK_CONTENT = `1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
 2.  **Exactly 5 Recommendations:** The "recommendations" array in the JSON MUST contain exactly 5 player objects. No more, no less.
-3.  **Complete Data Population:** All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like \`playerSpecificVerdict\` or \`imageUrl\` within the recommendation object structure) MUST be populated with a valid, non-null, and non-empty value of the correct type. This is critical. Pay special attention to populating all nested objects and arrays.
+3.  **Complete Data Population:** All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like \`imageUrl\` or specific chart data that might be omitted if not applicable) MUST be populated with a valid, non-null, and non-empty value of the correct type.
     - \`executiveSummary.keyTableSynopsis.data\` MUST contain data for the 5 recommended players.
-    - **Shared Radar Chart Keys:** For \`hitterStrengths\` and \`pitcherProfile\` in the \`synthesis\` object of each recommendation, you MUST use the following 5-6 keys consistently: "Contact", "Power", "Discipline", "AvoidK", "Speed", "Adaptability". Populate these with percentile scores (0-100) representing the player's skill or the pitcher's vulnerability/strength related to that aspect.
-    - **Optional Fields:** \`playerSpecificVerdict\`, \`imageUrl\`, \`matchup.pitchVulnerabilities\`, \`synthesis.hitterStrengths\`, \`synthesis.pitcherProfile\`, \`synthesis.hitterRadarMetrics\`. Populate these with appropriate data if available and relevant; otherwise, they can be omitted or provided as empty structures (e.g., empty array \`[]\` or empty object \`{}\`).
-4.  **Data Accuracy:** All data, including stats, probabilities, and player details, should be as accurate as possible for the given date. Ensure streak data is current.
-</RULES>
+    - **Shared Radar Chart Keys:** For \`hitterStrengths\` and \`pitcherProfile\` in the \`synthesis\` object of each recommendation, you MUST use the following 5-6 keys consistently: "Contact", "Power", "Discipline", "AvoidK", "Speed", "Adaptability". Populate these with percentile scores (0-100).
+    - **\`playerSpecificVerdict\` Content:** This field is CRITICAL. It MUST contain a detailed, multi-section textual analysis for the player, formatted using standard Markdown. See the example within the schema for structure.
+4.  **Data Accuracy:** All data, including stats, probabilities, and player details, should be as accurate as possible for the given date.
+5.  **Markdown Usage:** Use standard Markdown for formatting within the \`playerSpecificVerdict\` string: \`## Title\`, \`### Subtitle\`, \`**bold text**\`, \`*italic text*\`, and unordered lists using \`-\` or \`*\`.`;
 
-<SCHEMA>
-You MUST generate a JSON object that strictly adheres to the following structure. All string values must be properly escaped.
+const SCHEMA_BLOCK_CONTENT = (humanReadableDate: string) => `You MUST generate a JSON object that strictly adheres to the following structure. All string values must be properly escaped.
 
 {
   "reportTitle": "STREAKSENSE Daily Briefing",
   "date": "${humanReadableDate}",
   "executiveSummary": {
-    "situationalOverview": "Provide a concise overview of the day's MLB slate, key matchups, and any overarching themes or trends relevant to player performance. Example: 'A packed slate today with several high-profile pitching matchups. Weather could be a factor in eastern games. Focus on hitters in favorable park factors.'",
+    "situationalOverview": "Provide a concise overview of the day's MLB slate, key matchups, and any overarching themes or trends relevant to player performance.",
     "keyTableSynopsis": {
       "headers": ["Player", "Team", "Pos", "Composite Prob.", "Neural Net Prob.", "Streak (Games)"],
       "data": [
+        // Populate with data for the 5 recommended players
         {
-          "player": "Name of 1st Recommended Player",
-          "team": "Team of 1st Recommended Player",
-          "pos": "Position of 1st Recommended Player",
-          "compositeProb": "Composite Probability of 1st Recommended Player (as string with %)",
-          "modelXProb": "Relevant Model Probability of 1st Recommended Player (as string with %)",
-          "streak": "Hitting Streak of 1st Recommended Player (string or number, e.g., '5' or 'N/A')"
+          "player": "Name of 1st Recommended Player", "team": "Team", "pos": "Pos",
+          "compositeProb": "Prob%", "modelXProb": "Prob%", "streak": "5"
         }
-        // ... (repeat this structure for the other 4 recommended players)
+        // ... (4 more players)
       ]
     }
   },
   "recommendations": [
     {
-      "player": "Shohei Ohtani (Example Player for Structure)",
+      "player": "Shohei Ohtani (Example Player)",
       "team": "LAD (Example Team)",
       "position": "DH (Example Position)",
-      "imageUrl": "https://a.espncdn.com/combiner/i?img=/i/headshots/mlb/players/full/39832.png&w=350&h=254 (Example URL, provide if known, otherwise omit)",
-      "playerSpecificVerdict": "Ohtani's elite plate discipline and hard-hit ability make him a prime candidate. (Example text)",
+      "imageUrl": "https://a.espncdn.com/combiner/i?img=/i/headshots/mlb/players/full/39832.png&w=350&h=254 (Optional URL)",
+      "playerSpecificVerdict": "## Deep Dive Analysis for Shohei Ohtani\\n\\n### A. Core Performance & Platoon Dominance\\n(Provide a narrative discussing Ohtani's current season performance, hitting streaks, any notable platoon splits (vs LHP/RHP), and overall offensive profile. Include key supporting stats inline or as a short list. Example: Ohtani is hitting .315 with a 1.050 OPS this season. Against RHP, he boasts a 1.100 OPS...)\\n\\n### B. Statcast Validation\\n(Discuss Ohtani's key Statcast metrics. Describe why these metrics support his selection. Examples: Hard Hit %, Barrel %, xwOBA, Avg Exit Velocity. Mention percentiles if available. Example: His xwOBA of .420 ranks in the 95th percentile, indicating elite quality of contact...)\\n\\n### C. The Matchup Analysis\\n(Detail the matchup against the opposing starting pitcher. Include pitcher's name, team, relevant stats like ERA, WHIP. Discuss any BvP history. Analyze Park Factors for the game venue and relevant Weather Conditions. Example: Tonight, Ohtani faces RHP John Doe (3.50 ERA, 1.15 WHIP). Ohtani is 3-for-7 lifetime against Doe. The game is at Petco Park, which is generally pitcher-friendly, but the wind is blowing out...)\\n\\n### D. Models & Final Verdict\\n(Include probabilities or insights from any predictive models you are simulating. Provide a concise final verdict statement summarizing why Ohtani is a strong pick. Include a brief risk assessment. Example: Our primary model gives Ohtani an 85% hit probability. **Verdict:** Ohtani's elite skills and favorable specific matchup elements make him a top recommendation. **Risk:** Low, given consistent performance, though the opposing pitcher has been effective recently.)",
       "corePerformance": {
-        "slashLine2025": ".310/.405/.650 (Example Format)",
-        "OPS2025": "1.055 (Example Format)",
-        "activeHittingStreak": {"games": "5 (Example)", "details": "5-game hitting streak (9-for-22, .409 AVG, 2 HR) (Example details)"},
-        "recentPerformance": {
-          "last7GamesAvg": [0.280, 0.300, 0.320, 0.250, 0.400, 0.350, 0.380],
-          "last15GamesAvg": [0.290, 0.270, 0.310, 0.330, 0.260, 0.300, 0.350, 0.280, 0.320, 0.360, 0.290, 0.310, 0.300, 0.340, 0.370],
-          "last30GamesAvg": [0.300, 0.280, 0.290, 0.310, 0.320, 0.270, 0.300, 0.330, 0.350, 0.290, 0.280, 0.310, 0.340, 0.300, 0.320, 0.330, 0.290, 0.300, 0.310, 0.320, 0.300, 0.290, 0.330, 0.340, 0.310, 0.300, 0.280, 0.320, 0.350, 0.360]
-        }
+        "slashLine2025": ".310/.405/.650", "OPS2025": "1.055",
+        "activeHittingStreak": {"games": "5", "details": "5-game hitting streak (9-for-22, .409 AVG)"}
       },
-      "statcastValidation": [
-        {"label": "Hard Hit %", "value": "55.2% (Example Format)", "percentile": 92},
-        {"label": "Barrel %", "value": "18.5% (Example Format)", "percentile": 95},
-        {"label": "Avg Exit Velocity", "value": "94.1 mph (Example Format)", "percentile": 93},
-        {"label": "xwOBA", "value": ".410 (Example Format)", "percentile": 94}
+      "statcastValidation": [ 
+          {"label": "Hard Hit %", "value": "55.2%", "percentile": 92},
+          {"label": "xwOBA", "value": ".410", "percentile": 94}
       ],
       "matchup": {
-        "pitcher": "Logan Webb (Example Pitcher)", "team": "SFG (Example Opponent Team)", "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
-        "pitchVulnerabilities": [
-            {"pitchType": "Sinker", "vulnerabilityScore": 0.18},
-            {"pitchType": "Changeup", "vulnerabilityScore": 0.25}
-        ]
+        "pitcher": "Logan Webb", "team": "SFG", "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
+        "pitchVulnerabilities": [ {"pitchType": "Sinker", "vulnerabilityScore": 0.18} ]
       },
-      "synthesis": {
-        "predictiveModels": [
-          {"modelName": "Baseball Musings NN (Example Model)", "probability": "85.0%"},
-          {"modelName": "STREAKSENSE Alpha (Example Model)", "probability": "87.0%"}
-        ],
-        "BvPHistory": "5-for-12 (.417), 2 HR vs Webb (Example)",
-        "parkFactors": {"venue": "Dodger Stadium (Example Venue)", "historicalTendency": "Slightly Hitter-Friendly (Example Tendency)"},
-        "weatherConditions": {"forecast": "Clear, 72°F, Wind 5mph L to R (Example Forecast)"},
-        "hitterStrengths": { 
-            "Contact": 85, "Power": 92, "Discipline": 78, "AvoidK": 88, "Speed": 70, "Adaptability": 80 
-        },
-        "pitcherProfile": { 
-            "Contact": 60, "Power": 55, "Discipline": 65, "AvoidK": 70, "Speed": 40, "Adaptability": 75 
-        },
-        "hitterRadarMetrics": {
-            "xBA": 88, "HardHitPct": 92, "AvgExitVelo": 94, "BarrelPct": 85, "ChaseRate": 70, "WhiffPct": 75
-        }
+      "synthesis": { 
+        "predictiveModels": [ {"modelName": "STREAKSENSE Alpha", "probability": "87.0%"} ],
+        "BvPHistory": "5-for-12 (.417), 2 HR vs Webb",
+        "parkFactors": {"venue": "Dodger Stadium", "historicalTendency": "Slightly Hitter-Friendly"},
+        "weatherConditions": {"forecast": "Clear, 72°F, Wind 5mph L to R"},
+        "hitterStrengths": { "Contact": 85, "Power": 92, "Discipline": 78, "AvoidK": 88, "Speed": 70, "Adaptability": 80 },
+        "pitcherProfile": { "Contact": 60, "Power": 55, "Discipline": 65, "AvoidK": 70, "Speed": 40, "Adaptability": 75 },
+        "hitterRadarMetrics": { "xBA": 88, "HardHitPct": 92, "AvgExitVelo": 94, "BarrelPct": 85, "ChaseRate": 70, "WhiffPct": 75 }
       },
       "finalVerdict": {
         "compositeHitProbability": 88.5
       }
     }
-    // Reminder: Generate 4 MORE unique player objects like the example above.
   ],
   "watchListCautionaryNotes": {
     "honorableMentions": [
-      {
-        "player": "Example Honorable Mention Player Name", 
-        "team": "XYZ (Example Team)",
-        "description": "Reason for honorable mention.",
-        "compositeHitProbability": 72.3
-      }
+      { "player": "Example Player", "team": "XYZ", "description": "Reason.", "compositeHitProbability": 72.3 }
     ],
     "ineligiblePlayersToNote": [
-      {
-        "player": "Example Ineligible Player Name", 
-        "team": "ABC (Example Team)",
-        "reason": "Reason for ineligibility."
-      }
+      { "player": "Example Player", "team": "ABC", "reason": "Reason." }
     ]
   }
-}
+}`;
+
+const TASK_BLOCK_CONTENT = (humanReadableDate: string) => `Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. The \`playerSpecificVerdict\` for each recommendation must be a comprehensive, multi-section analysis formatted with Markdown.`;
+
+const constructPrompt = (date: string, humanReadableDate: string): string => {
+  return `<ROLE>
+${ROLE_BLOCK_CONTENT}
+</ROLE>
+
+<CONTEXT>
+${CONTEXT_BLOCK_CONTENT(date, humanReadableDate)}
+</CONTEXT>
+
+<RULES>
+${RULES_BLOCK_CONTENT}
+</RULES>
+
+<SCHEMA>
+${SCHEMA_BLOCK_CONTENT(humanReadableDate)}
 </SCHEMA>
 
 <TASK>
-Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations.
+${TASK_BLOCK_CONTENT(humanReadableDate)}
 </TASK>`;
 };
 
@@ -141,8 +119,8 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
         model: modelName,
         contents: [{ parts: [{ text: prompt }] }],
         config: {
-            responseMimeType: "application/json",
-            temperature: 0.4, 
+             responseMimeType: "application/json",
+             temperature: 0.4,
         },
     });
     
@@ -165,6 +143,9 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
       const parsedData: AnalysisReport = JSON.parse(jsonText);
       if (!parsedData.recommendations || parsedData.recommendations.length !== 5) {
         console.warn("Parsed data is missing 'recommendations' or does not have 5 items.", parsedData);
+      }
+      if (parsedData.recommendations.some(p => !p.playerSpecificVerdict || p.playerSpecificVerdict.length < 50)) {
+         console.warn("Some recommendations have very short or missing 'playerSpecificVerdict'.", parsedData.recommendations.map(p=> ({player: p.player, verdictLength: p.playerSpecificVerdict?.length || 0 })));
       }
       return parsedData;
     } catch (e) {

@@ -113,7 +113,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
 
     const result: GenerateContentResponse = await ai.models.generateContent({
         model: modelName,
-    ...request
+   ...request
     });
     
     let jsonText = result.text;

@@ -19,12 +19,22 @@ const CONTEXT_BLOCK_CONTENT = (date: string, humanReadableDate: string) => `The 
 
 const RULES_BLOCK_CONTENT = `1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
 2.  **Exactly 5 Recommendations:** The "recommendations" array in the JSON MUST contain exactly 5 player objects. No more, no less.
-3.  **Complete Data Population:** All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like \`imageUrl\` or specific chart data that might be omitted if not applicable) MUST be populated with a valid, non-null, and non-empty value of the correct type.
-    - \`executiveSummary.keyTableSynopsis.data\` MUST contain data for the 5 recommended players.
-    - **Shared Radar Chart Keys:** For \`hitterStrengths\` and \`pitcherProfile\` in the \`synthesis\` object of each recommendation, you MUST use the following 5-6 keys consistently: "Contact", "Power", "Discipline", "AvoidK", "Speed", "Adaptability". Populate these with percentile scores (0-100).
-    - **\`playerSpecificVerdict\` Content:** This field is CRITICAL. It MUST contain a detailed, multi-section textual analysis for the player, formatted using standard Markdown. See the example within the schema for structure.
+3.  **Complete Data Population & \`playerSpecificVerdict\` Formatting:**
+    -   All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like \`imageUrl\` or specific chart data that might be omitted if not applicable) MUST be populated with a valid, non-null, and non-empty value of the correct type.
+    -   \`executiveSummary.keyTableSynopsis.data\` MUST contain data for the 5 recommended players.
+    -   **Shared Radar Chart Keys:** For \`hitterStrengths\` and \`pitcherProfile\` in the \`synthesis\` object of each recommendation, you MUST use the following 5-6 keys consistently: "Contact", "Power", "Discipline", "AvoidK", "Speed", "Adaptability". Populate these with percentile scores (0-100).
+    -   **\`playerSpecificVerdict\` Formatting and Content:** This field is CRITICAL and requires specific Markdown structure:
+        1.  Start with a main title using \`##\`, e.g., \`## Deep Dive Analysis for [Player Name]\`.
+        2.  Follow with exactly four main section subtitles using \`###\`:
+            -   \`### A. Core Performance & Platoon Dominance\`
+            -   \`### B. Statcast Validation\`
+            -   \`### C. The Matchup Analysis\`
+            -   \`### D. Models & Final Verdict\`
+        3.  **Under each \`###\` subtitle, provide detailed narrative text as plain paragraphs.** These paragraphs MUST NOT be prefixed with any heading markers (e.g., do not use \`##\`, \`###\`, or \`####\` for these narrative blocks).
+        4.  Within these narratives, you can use \`**bold text**\`, \`*italic text*\`, and unordered lists (starting with \`-\` or \`*\`) for items like stats or model outputs.
+        5.  Refer to the example for \`playerSpecificVerdict\` in the \`<SCHEMA>\` section for guidance on the expected content for each section.
 4.  **Data Accuracy:** All data, including stats, probabilities, and player details, should be as accurate as possible for the given date.
-5.  **Markdown Usage:** Use standard Markdown for formatting within the \`playerSpecificVerdict\` string: \`## Title\`, \`### Subtitle\`, \`**bold text**\`, \`*italic text*\`, and unordered lists using \`-\` or \`*\`.`;
+5.  **General Markdown Usage:** For fields allowing Markdown (primarily \`playerSpecificVerdict\`), strictly adhere to the formatting rules specified (e.g., Rule 3 for \`playerSpecificVerdict\`). Use \`**bold text**\` and \`*italic text*\` for emphasis, and unordered lists (lines starting with \`-\` or \`*\`) for lists of items. Do not introduce other complex Markdown elements unless specified.`;
 
 const SCHEMA_BLOCK_CONTENT = (humanReadableDate: string) => `You MUST generate a JSON object that strictly adheres to the following structure. All string values must be properly escaped.
 
@@ -88,7 +98,7 @@ const SCHEMA_BLOCK_CONTENT = (humanReadableDate: string) => `You MUST generate a
   }
 }`;
 
-const TASK_BLOCK_CONTENT = (humanReadableDate: string) => `Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. The \`playerSpecificVerdict\` for each recommendation must be a comprehensive, multi-section analysis formatted with Markdown.`;
+const TASK_BLOCK_CONTENT = (humanReadableDate: string) => `Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. The \`playerSpecificVerdict\` for each recommendation must be a comprehensive, multi-section analysis formatted with Markdown as per Rule 3.`;
 
 const constructPrompt = (date: string, humanReadableDate: string): string => {
   return `<ROLE>

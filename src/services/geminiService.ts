@@ -20,7 +20,8 @@ const CONTEXT_BLOCK_CONTENT = (date: string, humanReadableDate: string) => `The 
 const RULES_BLOCK_CONTENT = `1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
 2.  **Exactly 5 Recommendations:** The "recommendations" array in the JSON MUST contain exactly 5 player objects. No more, no less.
 3.  **Complete Data Population & \`playerSpecificVerdict\` Formatting:**
-    -   All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like \`imageUrl\` or specific chart data that might be omitted if not applicable) MUST be populated with a valid, non-null, and non-empty value of the correct type.
+    -   All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like specific chart data that might be omitted if not applicable) MUST be populated with a valid, non-null, and non-empty value of the correct type.
+    -   If an \`imageUrl\` is provided for a player, it MUST be an accurate and publicly accessible URL for that specific player.
     -   \`executiveSummary.keyTableSynopsis.data\` MUST contain data for the 5 recommended players.
     -   **Shared Radar Chart Keys:** For \`hitterStrengths\` and \`pitcherProfile\` in the \`synthesis\` object of each recommendation, you MUST use the following 5-6 keys consistently: "Contact", "Power", "Discipline", "AvoidK", "Speed", "Adaptability". Populate these with percentile scores (0-100).
     -   **\`playerSpecificVerdict\` Formatting and Content:** This field is CRITICAL and requires specific Markdown structure:
@@ -34,7 +35,8 @@ const RULES_BLOCK_CONTENT = `1.  **JSON Only:** Your entire response MUST be a s
         4.  Within these narratives, you can use \`**bold text**\`, \`*italic text*\`, and unordered lists (starting with \`-\` or \`*\`) for items like stats or model outputs.
         5.  Refer to the example for \`playerSpecificVerdict\` in the \`<SCHEMA>\` section for guidance on the expected content for each section.
 4.  **Data Accuracy:** All data, including stats, probabilities, and player details, should be as accurate as possible for the given date.
-5.  **General Markdown Usage:** For fields allowing Markdown (primarily \`playerSpecificVerdict\`), strictly adhere to the formatting rules specified (e.g., Rule 3 for \`playerSpecificVerdict\`). Use \`**bold text**\` and \`*italic text*\` for emphasis, and unordered lists (lines starting with \`-\` or \`*\`) for lists of items. Do not introduce other complex Markdown elements unless specified.`;
+5.  **Full Team Names:** For all 'team' fields in the JSON (e.g., player's team, opposing pitcher's team), use the full team name (e.g., "Los Angeles Dodgers", "New York Yankees", "Houston Astros"). Do not use abbreviations like "LAD", "NYY", "HOU".
+6.  **General Markdown Usage:** For fields allowing Markdown (primarily \`playerSpecificVerdict\`), strictly adhere to the formatting rules specified (e.g., Rule 3 for \`playerSpecificVerdict\`). Use \`**bold text**\` and \`*italic text*\` for emphasis, and unordered lists (lines starting with \`-\` or \`*\`) for lists of items. Do not introduce other complex Markdown elements unless specified.`;
 
 const SCHEMA_BLOCK_CONTENT = (humanReadableDate: string) => `You MUST generate a JSON object that strictly adheres to the following structure. All string values must be properly escaped.
 
@@ -48,30 +50,31 @@ const SCHEMA_BLOCK_CONTENT = (humanReadableDate: string) => `You MUST generate a
       "data": [
         // Populate with data for the 5 recommended players
         {
-          "player": "Name of 1st Recommended Player", "team": "Team", "pos": "Pos",
+          "player": "Name of 1st Recommended Player", "team": "Full Team Name", "pos": "Pos",
           "compositeProb": "Prob%", "modelXProb": "Prob%", "streak": "5"
         }
-        // ... (4 more players)
+        // ... (4 more players, using full team names)
       ]
     }
   },
   "recommendations": [
     {
       "player": "Shohei Ohtani (Example Player)",
-      "team": "LAD (Example Team)",
+      "team": "Los Angeles Dodgers (Example: Full Team Name)",
       "position": "DH (Example Position)",
-      "imageUrl": "https://a.espncdn.com/combiner/i?img=/i/headshots/mlb/players/full/39832.png&w=350&h=254 (Optional URL)",
-      "playerSpecificVerdict": "## Deep Dive Analysis for Shohei Ohtani\\n\\n### A. Core Performance & Platoon Dominance\\n(Provide a narrative discussing Ohtani's current season performance, hitting streaks, any notable platoon splits (vs LHP/RHP), and overall offensive profile. Include key supporting stats inline or as a short list. Example: Ohtani is hitting .315 with a 1.050 OPS this season. Against RHP, he boasts a 1.100 OPS...)\\n\\n### B. Statcast Validation\\n(Discuss Ohtani's key Statcast metrics. Describe why these metrics support his selection. Examples: Hard Hit %, Barrel %, xwOBA, Avg Exit Velocity. Mention percentiles if available. Example: His xwOBA of .420 ranks in the 95th percentile, indicating elite quality of contact...)\\n\\n### C. The Matchup Analysis\\n(Detail the matchup against the opposing starting pitcher. Include pitcher's name, team, relevant stats like ERA, WHIP. Discuss any BvP history. Analyze Park Factors for the game venue and relevant Weather Conditions. Example: Tonight, Ohtani faces RHP John Doe (3.50 ERA, 1.15 WHIP). Ohtani is 3-for-7 lifetime against Doe. The game is at Petco Park, which is generally pitcher-friendly, but the wind is blowing out...)\\n\\n### D. Models & Final Verdict\\n(Include probabilities or insights from any predictive models you are simulating. Provide a concise final verdict statement summarizing why Ohtani is a strong pick. Include a brief risk assessment. Example: Our primary model gives Ohtani an 85% hit probability. **Verdict:** Ohtani's elite skills and favorable specific matchup elements make him a top recommendation. **Risk:** Low, given consistent performance, though the opposing pitcher has been effective recently.)",
+      "imageUrl": "https://a.espncdn.com/combiner/i?img=/i/headshots/mlb/players/full/39832.png&w=350&h=254 (Optional URL, ensure accuracy)",
+      "playerSpecificVerdict": "## Deep Dive Analysis for Shohei Ohtani\\n\\n### A. Core Performance & Platoon Dominance\\n(Provide a narrative discussing Ohtani's current season performance, hitting streaks including average during streak, last game performance (e.g., '2-for-4, HR'), any notable platoon splits (vs LHP/RHP), and overall offensive profile. Include key supporting stats inline or as a short list. Example: Ohtani is hitting .315 with a 1.050 OPS this season. He is currently on a **7-game hitting streak (10-for-28, .357 AVG)**. In his last game, he went 2-for-5 with a double. Against RHP, he boasts a 1.100 OPS...)\\n\\n### B. Statcast Validation\\n(Discuss Ohtani's key Statcast metrics. Describe why these metrics support his selection. Examples: Hard Hit %, Barrel %, xwOBA, Avg Exit Velocity. Mention percentiles if available. Example: His xwOBA of .420 ranks in the 95th percentile, indicating elite quality of contact...)\\n\\n### C. The Matchup Analysis\\n(Detail the matchup against the opposing starting pitcher. Include pitcher's full name, throwing hand (LHP/RHP), team (full name), relevant stats like ERA, WHIP, K/9, BB/9, HR/9, and common pitch types (e.g., Fastball, Slider, Curveball). Discuss comprehensive BvP history: At-bats (AB), Hits (H), Doubles (2B), Triples (3B), Home Runs (HR), RBIs, Walks (BB), Strikeouts (K), and the calculated BA/OBP/SLG from these encounters. Example: 'Tonight, Ohtani faces RHP John 'The Hurler' Doe (LHP, 3.50 ERA, 1.15 WHIP, 9.5 K/9, primary pitches: Sinker, Slider). Ohtani is 3-for-7 lifetime (.429 BA / .429 OBP / .857 SLG) against Doe, with 1 HR and 2 RBI.' Analyze Park Factors for the game venue and relevant Weather Conditions. Example: The game is at Petco Park, which is generally pitcher-friendly, but the wind is blowing out...)\\n\\n### D. Models & Final Verdict\\n(Include probabilities or insights from any predictive models you are simulating. Provide a concise final verdict statement summarizing why Ohtani is a strong pick. Include a brief risk assessment. Example: Our primary model gives Ohtani an 85% hit probability. **Verdict:** Ohtani's elite skills and favorable specific matchup elements make him a top recommendation. **Risk:** Low, given consistent performance, though the opposing pitcher has been effective recently.)",
       "corePerformance": {
         "slashLine2025": ".310/.405/.650", "OPS2025": "1.055",
-        "activeHittingStreak": {"games": "5", "details": "5-game hitting streak (9-for-22, .409 AVG)"}
+        "activeHittingStreak": {"games": "5", "details": "5-game hitting streak (9-for-22, .409 AVG)"},
+        "lastGamePerformance": "2-for-4, 1 HR, 2 RBI (Example)"
       },
       "statcastValidation": [ 
           {"label": "Hard Hit %", "value": "55.2%", "percentile": 92},
           {"label": "xwOBA", "value": ".410", "percentile": 94}
       ],
       "matchup": {
-        "pitcher": "Logan Webb", "team": "SFG", "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
+        "pitcher": "Logan Webb", "team": "San Francisco Giants (Example: Full Team Name)", "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
         "pitchVulnerabilities": [ {"pitchType": "Sinker", "vulnerabilityScore": 0.18} ]
       },
       "synthesis": { 
@@ -87,18 +90,19 @@ const SCHEMA_BLOCK_CONTENT = (humanReadableDate: string) => `You MUST generate a
         "compositeHitProbability": 88.5
       }
     }
+    // ... (4 more player recommendations following this detailed structure, including full team names and detailed playerSpecificVerdict)
   ],
   "watchListCautionaryNotes": {
     "honorableMentions": [
-      { "player": "Example Player", "team": "XYZ", "description": "Reason.", "compositeHitProbability": 72.3 }
+      { "player": "Example Player", "team": "Full Team Name", "description": "Reason.", "compositeHitProbability": 72.3 }
     ],
     "ineligiblePlayersToNote": [
-      { "player": "Example Player", "team": "ABC", "reason": "Reason." }
+      { "player": "Example Player", "team": "Full Team Name", "reason": "Reason." }
     ]
   }
 }`;
 
-const TASK_BLOCK_CONTENT = (humanReadableDate: string) => `Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. The \`playerSpecificVerdict\` for each recommendation must be a comprehensive, multi-section analysis formatted with Markdown as per Rule 3.`;
+const TASK_BLOCK_CONTENT = (humanReadableDate: string) => `Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. Each player's 'team' and 'matchup.team' fields must be full team names. The \`playerSpecificVerdict\` for each recommendation must be a comprehensive, multi-section analysis formatted with Markdown as per Rule 3, including detailed pitcher information, BvP stats, and batter's last game performance.`;
 
 const constructPrompt = (date: string, humanReadableDate: string): string => {
   return `<ROLE>

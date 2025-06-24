@@ -1,7 +1,7 @@
 
 export interface KeyTableSynopsisData {
   player: string;
-  team: string;
+  team: string; // Full team name, e.g., "Los Angeles Dodgers"
   pos: string;
   compositeProb: string;
   modelXProb: string; // Or a more generic model name from prompt
@@ -33,7 +33,7 @@ export interface StatcastMetric {
 
 export interface MatchupData {
   pitcher: string;
-  team: string; 
+  team: string; // Opposing team - Full team name, e.g., "San Francisco Giants"
   ERA: string;
   WHIP: string;
   battingAverageAgainst: string;
@@ -74,11 +74,12 @@ export interface CorePerformanceData {
     details?: string;
   };
   recentPerformance: RecentPerformance;
+  lastGamePerformance?: string; // e.g., "2-for-4, 1 HR, 2 RBI"
 }
 
 export interface PlayerData {
   player: string;
-  team: string;
+  team: string; // Full team name, e.g., "Los Angeles Dodgers"
   position: string;
   imageUrl?: string; // Optional URL for player's image
   corePerformance: CorePerformanceData;
@@ -94,14 +95,14 @@ export interface PlayerData {
 
 export interface HonorableMention {
   player: string;
-  team: string;
+  team: string; // Full team name
   description: string;
   compositeHitProbability?: number; 
 }
 
 export interface IneligiblePlayer {
   player: string;
-  team: string;
+  team: string; // Full team name
   reason: string;
 }
 

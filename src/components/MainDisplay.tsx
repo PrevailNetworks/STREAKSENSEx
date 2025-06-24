@@ -1,16 +1,14 @@
-
-import React from 'react'; // Removed useState as activeTab is gone
+import React, { useState } from 'react'; // Added useState
 import type { PlayerData, StatcastMetric } from '../types';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Cell } from 'recharts';
-import { FiInfo, FiMapPin, FiSun, FiWind, FiUsers, FiTrendingUp, FiBarChart2, FiUser, FiWatch } from 'react-icons/fi'; // Added FiWatch
-import MarkdownRenderer from './MarkdownRenderer'; // Import the new MarkdownRenderer
+import { FiInfo, FiMapPin, FiSun, FiWind, FiUsers, FiTrendingUp, FiBarChart2, FiUser, FiWatch } from 'react-icons/fi';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface MainDisplayProps {
   player: PlayerData;
   reportDate: string; 
 }
 
-// SectionTitle remains useful for structured cards
 const SectionTitle: React.FC<{ title: string, icon?: React.ReactNode, className?: string }> = ({ title, icon, className = "" }) => (
   <div className={`flex items-center mb-4 ${className}`}>
     {icon && <span className="mr-2 text-[var(--primary-glow)] text-lg">{icon}</span>}
@@ -30,7 +28,6 @@ const ContextualFactorItem: React.FC<{ icon: React.ReactNode; label: string; val
     </div>
 );
 
-// StatcastListItem might not be directly used if all statcast info is in Markdown, but kept for now.
 const StatcastListItem: React.FC<{ metric: StatcastMetric }> = ({ metric }) => (
     <li className="py-2">
         <div className="flex justify-between items-center mb-1 text-sm">
@@ -66,13 +63,24 @@ const HITTER_RADAR_METRIC_KEYS: Array<{key: string, label: string}> = [
 const PITCHER_ARSENAL_COLORS = ['#a3e635', '#84cc16', '#6ca112', '#4d7c0f', '#365903'];
 
 const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, size = "w-16 h-16 sm:w-20 sm:h-20" }) => {
+  const [imageError, setImageError] = useState(false);
   const initials = player.player.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  if (player.imageUrl) {
-    return <img src={player.imageUrl} alt={player.player} className={`${size} rounded-full object-cover mr-4 border-2 border-[var(--border-color)] shadow-md`} />;
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  if (player.imageUrl && !imageError) {
+    return <img 
+             src={player.imageUrl} 
+             alt={player.player} 
+             className={`${size} rounded-full object-cover mr-4 border-2 border-[var(--border-color)] shadow-md`}
+             onError={handleImageError} 
+           />;
   }
   return (
     <div className={`${size} rounded-full bg-[var(--card-bg)] border-2 border-[var(--border-color)] flex items-center justify-center text-[var(--primary-glow)] font-bold text-xl sm:text-2xl mr-4 shadow-md`}>
-      {initials || <FiUser size={parseInt(size)/2 || 24} />}
+      {initials || <FiUser size={Math.floor(parseInt(size.split('-')[1] || '16') / 2) || 24} />}
     </div>
   );
 };
@@ -118,14 +126,11 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
          </div>
       </header>
       
-      {/* Main Analysis Section */}
       <section className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-xl border border-[var(--border-color)]">
         <MarkdownRenderer content={playerSpecificVerdict || "Detailed analysis for this player is currently unavailable."} />
       </section>
 
-      {/* Visual Data Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Hit Probability */}
         <div className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-xl border border-[var(--border-color)]">
           <SectionTitle title="Hit Probability" icon={<FiTrendingUp />} />
           <div className="w-full h-48 sm:h-56">
@@ -141,7 +146,6 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
           </div>
         </div>
 
-        {/* Hitter Advanced Profile Radar */}
         {hitterAnalysisRadarData && hitterAnalysisRadarData.length > 0 && (
             <div className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-xl border border-[var(--border-color)]">
                 <SectionTitle title="Hitter Advanced Profile" icon={<FiBarChart2 />} />
@@ -163,7 +167,6 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
             </div>
         )}
 
-        {/* Contextual Factors Card */}
         <div className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-xl border border-[var(--border-color)] space-y-3">
           <SectionTitle title="Contextual Factors" icon={<FiWatch />} />
             {synthesis.parkFactors && 
@@ -185,7 +188,6 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
         </div>
       </div>
       
-      {/* Matchup Analysis - Tale of the Tape - Full Width Below Grid */}
       <div className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-xl border border-[var(--border-color)]">
           <SectionTitle title="Matchup Analysis: Tale of the Tape" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -237,7 +239,7 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
             </div>
           </div>
             <div className="grid grid-cols-3 gap-2 mt-6 text-center text-xs border-t border-[var(--border-color)] pt-4">
-                <div className="bg-[var(--sidebar-bg)] p-2 rounded"> {/* Using sidebar-bg for slightly darker contrast */}
+                <div className="bg-[var(--sidebar-bg)] p-2 rounded">
                     <span className="block text-[var(--text-secondary)] uppercase">Pitcher ERA</span>
                     <span className="block text-[var(--text-primary)] font-semibold text-sm">{matchup.ERA}</span>
                 </div>

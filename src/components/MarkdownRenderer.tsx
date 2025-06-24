@@ -6,47 +6,38 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   if (!content) {
-    return <p className="text-xs font-['Open_Sans'] text-[var(--text-secondary)]">No detailed analysis available.</p>;
+    return <p className="font-['Open_Sans'] text-xs text-[var(--text-secondary)]">No detailed analysis available.</p>;
   }
 
-  // Improved paragraph handling: split by one or more newlines, then filter out empty strings.
   const sections = content.split(/\n\s*\n/).map(section => section.trim()).filter(Boolean);
 
   const renderSection = (sectionText: string) => {
-    // ## Headings (H2)
     if (sectionText.startsWith('## ')) {
       return <h2 className="text-xl font-[var(--font-display)] text-[var(--primary-glow)] mt-5 mb-3 border-b border-[var(--border-color)] pb-2">{sectionText.substring(3)}</h2>;
     }
-    // ### Headings (H3)
     if (sectionText.startsWith('### ')) {
       return <h3 className="text-lg font-semibold text-[var(--text-primary)] mt-4 mb-2">{sectionText.substring(4)}</h3>;
     }
-    // #### Headings (H4)
     if (sectionText.startsWith('#### ')) {
         return <h4 className="text-md font-semibold text-[var(--text-primary)] mt-3 mb-1">{sectionText.substring(5)}</h4>;
     }
 
-    // Unordered lists
     if (sectionText.match(/^(\s*(\*|-)\s+.*)(\n\s*(\*|-)\s+.*)*$/s)) {
       const items = sectionText.split('\n').map(item => item.trim().replace(/^(\*|-)\s*/, '')).filter(Boolean);
       return (
-        <ul className="list-disc list-inside space-y-1 text-xs text-[var(--text-secondary)] pl-4 mb-3">
+        <ul className="list-disc list-inside space-y-1 text-[var(--text-secondary)] pl-4 mb-3">
           {items.map((item, index) => <li key={index}>{parseInlineMarkdown(item)}</li>)}
         </ul>
       );
     }
     
-    // Default to paragraph for other text blocks
-    return <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">{parseInlineMarkdown(sectionText)}</p>;
+    return <p className="text-[var(--text-secondary)] leading-relaxed mb-3">{parseInlineMarkdown(sectionText)}</p>;
   };
 
   const parseInlineMarkdown = (text: string): React.ReactNode => {
-    // **bold**
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    // *italic*
     text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
     
-    // Simple way to handle newlines within a paragraph-like block for pre-formatted text:
     const parts = text.split(/(\n)/).map((part, index) => {
         if (part === '\n') return <br key={`br-${index}`} />;
         return <span key={`text-${index}`} dangerouslySetInnerHTML={{ __html: part }} />;
@@ -55,7 +46,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   };
 
   return (
-    <div className="prose font-['Open_Sans'] max-w-none text-[var(--text-secondary)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-primary)]">
+    <div className="prose prose-p:text-xs prose-li:text-xs prose-ul:text-xs prose-ol:text-xs font-['Open_Sans'] max-w-none text-[var(--text-secondary)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-primary)]">
       {sections.map((section, index) => (
         <React.Fragment key={index}>
           {renderSection(section)}

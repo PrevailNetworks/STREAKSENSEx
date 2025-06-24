@@ -33,11 +33,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
     if (audioRef.current && audioSrc) {
       audioRef.current.src = audioSrc;
       audioRef.current.volume = isMuted ? 0 : volume;
-      // Autoplay is generally not recommended and often blocked
-      // If you need autoplay, consider adding a user setting or interaction first
-      // audioRef.current.play().catch(e => console.warn("Autoplay prevented:", e));
     }
-  }, [audioSrc, volume, isMuted]); // React to audioSrc, volume, and isMuted changes
+  }, [audioSrc, volume, isMuted]);
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
@@ -58,20 +55,37 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
     setCurrentTime(0); // Optionally reset to beginning
   };
 
-  const handleAudioError = (e: Event) => {
-    console.error("Audio Error:", (e.target as HTMLAudioElement).error);
+  // Corrected type for onError event handler
+  const handleAudioError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+    const audioEl = e.currentTarget;
+    if (audioEl && audioEl.error) {
+        console.error("Audio Error Code:", audioEl.error.code, "Message:", audioEl.error.message);
+    } else {
+        console.error("Audio Error event:", e);
+    }
     setError("Daily overview audio not available.");
     setIsLoading(false);
     setDuration(0);
     setCurrentTime(0);
   };
 
+  const handlePlayPromiseError = (playError: any) => {
+    console.error("Error attempting to play audio:", playError);
+    // Avoid calling handleAudioError directly if it expects a SyntheticEvent
+    // and we have a generic Error object here.
+    if (!error) { // Set error only if not already set by an `onerror` event
+        setError("Failed to start audio playback.");
+        setIsPlaying(false); // Ensure UI reflects that playback didn't start/continue
+        setIsLoading(false); // If it was loading, it's not anymore
+    }
+  };
+
   const togglePlayPause = () => {
-    if (!audioRef.current || error) return;
+    if (!audioRef.current || error || isLoading) return;
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play().catch(handleAudioError);
+      audioRef.current.play().catch(handlePlayPromiseError);
     }
     setIsPlaying(!isPlaying);
   };
@@ -95,8 +109,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
     if (!audioRef.current) return;
     if (isMuted) {
       setIsMuted(false);
-      audioRef.current.volume = volume > 0 ? volume : 0.1; // Restore to previous or small volume
-      if (volume === 0) setVolume(0.1); // Ensure volume state reflects unmuted state
+      audioRef.current.volume = volume > 0 ? volume : 0.1; 
+      if (volume === 0) setVolume(0.1); 
     } else {
       setIsMuted(true);
       audioRef.current.volume = 0;
@@ -117,14 +131,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleAudioEnded}
-        onError={handleAudioError}
-        preload="metadata" // Important for getting duration without full load
+        onError={handleAudioError} // Correctly uses the updated handleAudioError
+        preload="metadata"
+        src={audioSrc || undefined}
       />
       <div className="flex items-center justify-between">
         <button
           aria-label={isPlaying ? 'Pause' : 'Play'}
           onClick={togglePlayPause}
-          disabled={isLoading || !!error}
+          disabled={isLoading || !!error || duration === 0}
           className="text-[var(--text-primary)] hover:text-[var(--primary-glow)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? <FiLoader className="w-5 h-5 animate-spin" /> : (isPlaying ? <FiPause className="w-5 h-5" /> : <FiPlay className="w-5 h-5" />)}
@@ -138,23 +153,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
                 onClick={toggleMute}
                 className="text-[var(--text-secondary)] hover:text-[var(--primary-glow)] transition-colors mr-2"
                 onMouseEnter={() => setShowVolumeSlider(true)}
-                onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 200)} // Delay hide
+                onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 300)}
             >
                 {isMuted || volume === 0 ? <FiVolumeX className="w-4 h-4" /> : <FiVolume2 className="w-4 h-4" />}
             </button>
             {showVolumeSlider && (
-                 <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                    className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-20 h-2 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--primary-glow)]"
-                    style={{transform: 'translateY(-50%) translateX(-100%) rotate(0deg)'}} // Adjusted for better positioning
-                    onMouseEnter={() => setShowVolumeSlider(true)} // Keep slider open if mouse re-enters
-                    onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 200)}
-                />
+                 <div 
+                    className="absolute right-0 top-1/2 -translate-y-1/2  transform translate-x-[calc(100%_+_8px)] z-10" 
+                    onMouseEnter={() => setShowVolumeSlider(true)} 
+                    onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 300)}
+                 >
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-20 h-2 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--primary-glow)]"
+                    />
+                 </div>
             )}
         </div>
       </div>

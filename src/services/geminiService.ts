@@ -1,4 +1,4 @@
-import { GoogleGenAI, GenerateContentResponse, GenerateContentRequest } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { AnalysisReport } from '../types';
 
 // Vite exposes env variables through import.meta.env
@@ -103,7 +103,7 @@ Now, generate the complete, valid JSON report for ${humanReadableDate} following
 export const fetchAnalysisForDate = async (date: string, humanReadableDate: string): Promise<AnalysisReport> => {
   const prompt = constructPrompt(date, humanReadableDate);
   try {
-    const request: GenerateContentRequest = {
+    const request = {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
@@ -111,29 +111,16 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
       },
     };
 
-    const result = await ai.models.generateContent({
+    const result: GenerateContentResponse = await ai.models.generateContent({
         model: modelName,
       ...request
     });
     
-    const response = result.response;
-    let jsonText = response.text();
+    const jsonText = result.text;
 
     // The response should already be clean JSON due to responseMimeType,
     // but this cleanup logic is kept as a defensive fallback.
-    if (!jsonText.startsWith('{')) {
-        const jsonStartIndex = jsonText.indexOf('{');
-        if (jsonStartIndex > -1) {
-            jsonText = jsonText.substring(jsonStartIndex);
-        }
-    }
-    if (!jsonText.endsWith('}')) {
-        const jsonEndIndex = jsonText.lastIndexOf('}');
-        if (jsonEndIndex > -1) {
-            jsonText = jsonText.substring(0, jsonEndIndex + 1);
-        }
-    }
-
+    // No need to check startsWith or endsWith if the API guarantees JSON, but it's safe.
     try {
       const parsedData: AnalysisReport = JSON.parse(jsonText);
       return parsedData;

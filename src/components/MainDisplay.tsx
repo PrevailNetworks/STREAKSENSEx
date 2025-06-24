@@ -1,4 +1,5 @@
-import React, { useState } from 'react'; // Added useState
+
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import type { PlayerData, StatcastMetric } from '../types';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Cell } from 'recharts';
 import { FiInfo, FiMapPin, FiSun, FiWind, FiUsers, FiTrendingUp, FiBarChart2, FiUser, FiWatch } from 'react-icons/fi';
@@ -66,18 +67,37 @@ const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, 
   const [imageError, setImageError] = useState(false);
   const initials = player.player.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
+  useEffect(() => {
+    setImageError(false); // Reset error state when player changes
+  }, [player.mlbId, player.imageUrl]);
+
   const handleImageError = () => {
     setImageError(true);
   };
 
-  if (player.imageUrl && !imageError) {
+  let imageUrlToLoad: string | undefined = undefined;
+
+  if (player.mlbId && !imageError) {
+    imageUrlToLoad = `https://img.mlbstatic.com/mlb-photos/image/upload/w_213,d_people:generic:headshot:silo:current.png,q_auto:best,f_auto/v1/people/${player.mlbId}/headshot/67/current`;
+  } else if (player.imageUrl && !imageError) {
+    // Only use player.imageUrl if mlbId is not available OR if mlbId attempt previously failed (though imageError should handle this)
+    // This condition ensures mlbId is prioritized.
+    if (!player.mlbId) {
+        imageUrlToLoad = player.imageUrl;
+    }
+  }
+  
+  // If after checking mlbId and imageUrl, and considering imageError, we have a URL:
+  if (imageUrlToLoad && !imageError) {
     return <img 
-             src={player.imageUrl} 
+             src={imageUrlToLoad} 
              alt={player.player} 
              className={`${size} rounded-full object-cover mr-4 border-2 border-[var(--border-color)] shadow-md`}
              onError={handleImageError} 
            />;
   }
+
+  // Fallback to initials
   return (
     <div className={`${size} rounded-full bg-[var(--card-bg)] border-2 border-[var(--border-color)] flex items-center justify-center text-[var(--primary-glow)] font-bold text-xl sm:text-2xl mr-4 shadow-md`}>
       {initials || <FiUser size={Math.floor(parseInt(size.split('-')[1] || '16') / 2) || 24} />}

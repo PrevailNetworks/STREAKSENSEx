@@ -81,7 +81,8 @@ export interface PlayerData {
   player: string;
   team: string; // Full team name, e.g., "Los Angeles Dodgers"
   position: string;
-  imageUrl?: string; // Optional URL for player's image
+  mlbId?: string; // MLB Player ID for headshot
+  imageUrl?: string; // Optional URL for player's image (fallback)
   corePerformance: CorePerformanceData;
   statcastValidation: StatcastMetric[]; // Keep for potential use or if AI includes it and we want to parse it from verdict
   matchup: MatchupData;

@@ -2,19 +2,19 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { AnalysisReport } from '../types';
 
-const API_KEY = process.env.API_KEY;
+// Vite exposes env variables through import.meta.env
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 if (!API_KEY) {
   // This will be caught by the App component and shown to the user.
-  // In a real app, you might have more sophisticated error logging or handling.
-  throw new Error("API_KEY environment variable is not set. Please configure it to use STREAKSENSE.");
+  throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your .env file (for local development) or hosting provider's settings to use STREAKSENSE.");
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
-const model = 'gemini-2.5-flash-preview-04-17';
+const modelName = 'gemini-2.5-flash-preview-04-17'; 
 
-const constructPrompt = (date: string, humanReadableDate: string): string => `
-System: You are an expert MLB analyst, STREAKSENSE. Provide a detailed player performance analysis report for the date ${date} (which is ${humanReadableDate}) in JSON format.
+const constructPrompt = (date: string, humanReadableDate: string): string => {
+  return `System: You are an expert MLB analyst, STREAKSENSE. Provide a detailed player performance analysis report for the date ${date} (which is ${humanReadableDate}) in JSON format.
 The JSON structure MUST be exactly as follows. Do not add any extra text before or after the JSON block. Ensure all string values are properly escaped within the JSON.
 Do not use markdown like \`\`\`json or \`\`\` around the JSON response.
 
@@ -121,48 +121,41 @@ Do not use markdown like \`\`\`json or \`\`\` around the JSON response.
       {"player": "Ronald Acuña Jr.", "team": "ATL", "reason": "Scheduled day off."}
     ]
   }
-}
-`;
+}`;
+};
 
 export const fetchAnalysisForDate = async (date: string, humanReadableDate: string): Promise<AnalysisReport> => {
   const prompt = constructPrompt(date, humanReadableDate);
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: model,
+      model: modelName,
       contents: prompt,
       config: {
-        // Explicitly request JSON, though prompt also instructs this.
-        // If Gemini wraps output in ```json ... ```, we'll need to strip it.
-        // Not using responseMimeType as per instructions in case it conflicts with prompt for exact structure.
-        // responseMimeType: "application/json", 
-        temperature: 0.5, // For more consistent, factual output
+        temperature: 0.5, 
       }
     });
     
-    let jsonText = response.text.trim();
+    let jsonText = (response.text ?? '').trim();
 
-    // Remove markdown fences if present
+    // Use a regex literal for clarity and to avoid escaping issues with string constructor
     const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
     const match = jsonText.match(fenceRegex);
     if (match && match[1]) {
       jsonText = match[1].trim();
     }
     
-    // Additional check for potential Gemini prepended text before JSON
     if (!jsonText.startsWith('{')) {
         const jsonStartIndex = jsonText.indexOf('{');
         if (jsonStartIndex > -1) {
             jsonText = jsonText.substring(jsonStartIndex);
         }
     }
-     // Additional check for potential Gemini appended text after JSON
     if (!jsonText.endsWith('}')) {
         const jsonEndIndex = jsonText.lastIndexOf('}');
         if (jsonEndIndex > -1) {
             jsonText = jsonText.substring(0, jsonEndIndex + 1);
         }
     }
-
 
     try {
       const parsedData: AnalysisReport = JSON.parse(jsonText);
@@ -175,7 +168,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
 
   } catch (error) {
     console.error('Error fetching data from Gemini:', error);
-    if (error instanceof Error && error.message.includes("candidate")) { // Check for specific Gemini API errors if possible
+    if (error instanceof Error && error.message.includes("candidate")) { 
         throw new Error("The AI model's response was blocked or incomplete. This might be due to safety settings or content policy. Please try a different query or date.");
     }
     throw new Error(`Failed to fetch analysis data: ${error instanceof Error ? error.message : String(error)}`);

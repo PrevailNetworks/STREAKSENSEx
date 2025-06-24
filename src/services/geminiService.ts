@@ -1,4 +1,4 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, GenerateContentRequest } from "@google/genai";
 import type { AnalysisReport } from '../types';
 
 // Vite exposes env variables through import.meta.env
@@ -10,7 +10,7 @@ if (!API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
-const modelName = 'gemini-2.5-flash-preview-04-17'; 
+const modelName = 'gemini-2.5-flash-preview-04-17';
 
 const constructPrompt = (date: string, humanReadableDate: string): string => {
   return `<ROLE>
@@ -103,20 +103,24 @@ Now, generate the complete, valid JSON report for ${humanReadableDate} following
 export const fetchAnalysisForDate = async (date: string, humanReadableDate: string): Promise<AnalysisReport> => {
   const prompt = constructPrompt(date, humanReadableDate);
   try {
-    const model = ai.getGenerativeModel({
-      model: modelName,
+    const request: GenerateContentRequest = {
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
+        temperature: 0.5,
       },
-    });
+    };
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
+    const result = await ai.models.generateContent({
+        model: modelName,
+      ...request
+    });
     
+    const response = result.response;
     let jsonText = response.text();
 
     // The response should already be clean JSON due to responseMimeType,
-    // but keep cleanup logic as a fallback.
+    // but this cleanup logic is kept as a defensive fallback.
     if (!jsonText.startsWith('{')) {
         const jsonStartIndex = jsonText.indexOf('{');
         if (jsonStartIndex > -1) {

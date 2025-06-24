@@ -151,55 +151,45 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
             </div>
         );
       case "fullAnalysis":
-        return ( /* Content as before, ensure it's wrapped or styled appropriately */ );
+        return (
+          <div>
+            <SectionTitle title="Comprehensive Player Analysis" icon={<FiTrendingUp />} />
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-md font-semibold text-[var(--text-primary)] mb-1">Core Performance Metrics:</h4>
+                <p className="text-sm text-[var(--text-secondary)]">Slash Line (2025): {corePerformance.slashLine2025}</p>
+                <p className="text-sm text-[var(--text-secondary)]">OPS (2025): {corePerformance.OPS2025}</p>
+                <p className="text-sm text-[var(--text-secondary)]">Active Hitting Streak: {corePerformance.activeHittingStreak.games} games {corePerformance.activeHittingStreak.details && `(${corePerformance.activeHittingStreak.details})`}</p>
+              </div>
+              {synthesis.predictiveModels && synthesis.predictiveModels.length > 0 && (
+                <div>
+                    <h4 className="text-md font-semibold text-[var(--text-primary)] mb-1">Predictive Model Insights:</h4>
+                    <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] pl-4">
+                    {synthesis.predictiveModels.map(m => <li key={m.modelName}>{m.modelName}: {m.probability}</li>)}
+                    </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
       case "statcastDeepDive":
-        return ( /* Content as before */ );
+           return (
+              <div>
+                  <SectionTitle title="Statcast™ Deep Dive" icon={<FiBarChart2 />} />
+                  {statcastValidation && statcastValidation.length > 0 ? (
+                      <ul className="space-y-1">
+                          {statcastValidation.map((metric, index) => (
+                              <StatcastListItem key={index} metric={metric} />
+                          ))}
+                      </ul>
+                  ) : (
+                      <p className="text-sm text-[var(--text-secondary)]">No detailed Statcast metrics available for this player.</p>
+                  )}
+              </div>
+          );
       default:
         return null;
     }
-     // Keep existing fullAnalysis and statcastDeepDive content, just ensure structure.
-     // For brevity, I'm only showing the 'verdict' tab changes. The other tabs' content remains.
-     // Ensure existing content for fullAnalysis and statcastDeepDive is preserved.
-     if (activeTab === "fullAnalysis") {
-      return (
-        <div>
-          <SectionTitle title="Comprehensive Player Analysis" icon={<FiTrendingUp />} />
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-md font-semibold text-[var(--text-primary)] mb-1">Core Performance Metrics:</h4>
-              <p className="text-sm text-[var(--text-secondary)]">Slash Line (2025): {corePerformance.slashLine2025}</p>
-              <p className="text-sm text-[var(--text-secondary)]">OPS (2025): {corePerformance.OPS2025}</p>
-              <p className="text-sm text-[var(--text-secondary)]">Active Hitting Streak: {corePerformance.activeHittingStreak.games} games {corePerformance.activeHittingStreak.details && `(${corePerformance.activeHittingStreak.details})`}</p>
-            </div>
-            {synthesis.predictiveModels && synthesis.predictiveModels.length > 0 && (
-              <div>
-                  <h4 className="text-md font-semibold text-[var(--text-primary)] mb-1">Predictive Model Insights:</h4>
-                  <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] pl-4">
-                  {synthesis.predictiveModels.map(m => <li key={m.modelName}>{m.modelName}: {m.probability}</li>)}
-                  </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-    if (activeTab === "statcastDeepDive") {
-         return (
-            <div>
-                <SectionTitle title="Statcast™ Deep Dive" icon={<FiBarChart2 />} />
-                {statcastValidation && statcastValidation.length > 0 ? (
-                    <ul className="space-y-1">
-                        {statcastValidation.map((metric, index) => (
-                            <StatcastListItem key={index} metric={metric} />
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="text-sm text-[var(--text-secondary)]">No detailed Statcast metrics available for this player.</p>
-                )}
-            </div>
-        );
-    }
-    return null; // Should not happen if one tab is always active
   };
 
 

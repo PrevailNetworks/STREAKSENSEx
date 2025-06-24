@@ -113,14 +113,16 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
 
     const result: GenerateContentResponse = await ai.models.generateContent({
         model: modelName,
-      ...request
+     ...request
     });
     
     const jsonText = result.text;
 
-    // The response should already be clean JSON due to responseMimeType,
-    // but this cleanup logic is kept as a defensive fallback.
-    // No need to check startsWith or endsWith if the API guarantees JSON, but it's safe.
+    if (!jsonText) {
+      console.error("Received empty or undefined text response from AI.");
+      throw new Error("Received empty response from AI.");
+    }
+
     try {
       const parsedData: AnalysisReport = JSON.parse(jsonText);
       return parsedData;

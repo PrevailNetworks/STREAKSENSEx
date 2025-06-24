@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { AnalysisReport } from '../types';
 
@@ -7,16 +6,36 @@ const API_KEY = import.meta.env.VITE_API_KEY;
 
 if (!API_KEY) {
   // This will be caught by the App component and shown to the user.
-  throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your .env file (for local development) or hosting provider's settings to use STREAKSENSE.");
+  throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your.env file (for local development) or hosting provider's settings to use STREAKSENSE.");
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
-const modelName = 'gemini-2.5-flash-preview-04-17'; 
+const modelName = 'gemini-1.5-flash-latest'; 
 
 const constructPrompt = (date: string, humanReadableDate: string): string => {
-  return `System: You are an expert MLB analyst, STREAKSENSE. Provide a detailed player performance analysis report for the date ${date} (which is ${humanReadableDate}) in JSON format.
-The JSON structure MUST be exactly as follows. Do not add any extra text before or after the JSON block. Ensure all string values are properly escaped within the JSON.
-Do not use markdown like \`\`\`json or \`\`\` around the JSON response.
+  return `<ROLE>
+You are STREAKSENSE, an expert Major League Baseball (MLB) data analyst and a specialized API. Your sole purpose is to provide a detailed player performance analysis report for the "Beat the Streak" fantasy game. You are precise, data-driven, and provide your output in a strict JSON format.
+</ROLE>
+
+<CONTEXT>
+The user requires a comprehensive analysis report for MLB games scheduled on ${date} (formatted as ${humanReadableDate}). The report is used to identify top player picks for the "Beat the Streak" game, where the goal is to select a player who will get at least one hit. Your analysis must be deep, incorporating a wide range of metrics to justify your selections.
+</CONTEXT>
+
+<RULES>
+1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
+2.  **Exactly 5 Recommendations:** The "recommendations" array in the JSON MUST contain exactly 5 player objects. No more, no less.
+3.  **Complete Data Population:** Every single field in the provided JSON schema MUST be populated with a valid, non-null, and non-empty value of the correct type. This is critical. Pay special attention to populating all nested objects and arrays, including:
+    - \`executiveSummary.situationalOverview\`
+    - \`executiveSummary.keyTableSynopsis.data\` (must contain data for the 5 recommended players)
+    - All fields within each of the 5 \`recommendations\` objects.
+    - \`corePerformance.recentPerformance\` arrays (\`last7GamesAvg\`, \`last15GamesAvg\`, \`last30GamesAvg\`) must be fully populated.
+    - \`statcastValidation\` array must be fully populated.
+    - \`synthesis.predictiveModels\` array must be fully populated.
+4.  **Data Accuracy:** All data, including stats, probabilities, and player details, should be as accurate as possible for the given date.
+</RULES>
+
+<SCHEMA>
+You MUST generate a JSON object that strictly adheres to the following structure. All string values must be properly escaped.
 
 {
   "reportTitle": "STREAKSENSE Daily Briefing",
@@ -24,126 +43,80 @@ Do not use markdown like \`\`\`json or \`\`\` around the JSON response.
   "executiveSummary": {
     "situationalOverview": "Provide a concise overview of the day's MLB slate, key matchups, and any overarching themes or trends relevant to player performance. Example: 'A packed slate today with several high-profile pitching matchups. Weather could be a factor in eastern games. Focus on hitters in favorable park factors.'",
     "keyTableSynopsis": {
-      "headers": ["Player", "Team", "Pos", "Composite Prob.", "Neural Net Prob.", "Streak (Games)"],
+      "headers":,
       "data": [
-        {"player": "Shohei Ohtani", "team": "LAD", "pos": "DH", "compositeProb": "88.5%", "modelXProb": "85.0%", "streak": "5"},
-        {"player": "Bobby Witt Jr.", "team": "KC", "pos": "SS", "compositeProb": "82.1%", "modelXProb": "80.5%", "streak": "3"},
-        {"player": "Juan Soto", "team": "NYY", "pos": "OF", "compositeProb": "79.5%", "modelXProb": "77.0%", "streak": "N/A"}
+        {"player": "string", "team": "string", "pos": "string", "compositeProb": "string", "modelXProb": "string", "streak": "string"},
+        {"player": "string", "team": "string", "pos": "string", "compositeProb": "string", "modelXProb": "string", "streak": "string"},
+        {"player": "string", "team": "string", "pos": "string", "compositeProb": "string", "modelXProb": "string", "streak": "string"},
+        {"player": "string", "team": "string", "pos": "string", "compositeProb": "string", "modelXProb": "string", "streak": "string"},
+        {"player": "string", "team": "string", "pos": "string", "compositeProb": "string", "modelXProb": "string", "streak": "string"}
       ],
-      "notes": ["Probabilities are based on a combination of proprietary models and expert analysis.", "Streak refers to active hitting streak."]
+      "notes":
     }
   },
-  "recommendations": [
-    {
-      "player": "Shohei Ohtani",
-      "team": "LAD",
-      "position": "DH",
-      "corePerformance": {
-        "slashLine2025": ".310/.405/.650",
-        "OPS2025": "1.055",
-        "activeHittingStreak": {"games": 5, "details": "5-game hitting streak (9-for-22, .409 AVG)"},
-        "recentPerformance": {
-          "last7GamesAvg": [0.280, 0.300, 0.320, 0.250, 0.400, 0.350, 0.380],
-          "last15GamesAvg": [0.290, 0.270, 0.310, 0.330, 0.260, 0.300, 0.350, 0.280, 0.320, 0.360, 0.290, 0.310, 0.300, 0.340, 0.370],
-          "last30GamesAvg": [0.300, 0.280, 0.290, 0.310, 0.320, 0.270, 0.300, 0.330, 0.350, 0.290, 0.280, 0.310, 0.340, 0.300, 0.320, 0.330, 0.290, 0.300, 0.310, 0.320, 0.300, 0.290, 0.330, 0.340, 0.310, 0.300, 0.280, 0.320, 0.350, 0.360]
+  "recommendations":,
+          "last15GamesAvg": [0.0],
+          "last30GamesAvg": [0.0]
         }
       },
       "statcastValidation": [
-        {"label": "Hard Hit %", "value": "55.2%", "percentile": 92},
-        {"label": "Barrel %", "value": "18.5%", "percentile": 95},
-        {"label": "Avg Exit Velocity", "value": "94.1 mph", "percentile": 93},
-        {"label": "xwOBA", "value": ".410", "percentile": 94}
+        {"label": "string", "value": "string", "percentile": 0},
+        {"label": "string", "value": "string", "percentile": 0},
+        {"label": "string", "value": "string", "percentile": 0},
+        {"label": "string", "value": "string", "percentile": 0}
       ],
       "matchup": {
-        "pitcher": "Logan Webb",
-        "team": "SFG",
-        "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235"
+        "pitcher": "string",
+        "team": "string",
+        "ERA": "string", "WHIP": "string", "battingAverageAgainst": "string"
       },
       "synthesis": {
         "predictiveModels": [
-          {"modelName": "Baseball Musings NN", "probability": "85.0%"},
-          {"modelName": "STREAKSENSE Alpha", "probability": "87.0%"}
+          {"modelName": "string", "probability": "string"},
+          {"modelName": "string", "probability": "string"}
         ],
-        "BvPHistory": "5-for-12 (.417), 2 HR vs Webb",
-        "parkFactors": {"venue": "Dodger Stadium", "historicalTendency": "Slightly Hitter-Friendly"},
-        "weatherConditions": {"forecast": "Clear, 72°F, Wind 5mph L to R"}
+        "BvPHistory": "string",
+        "parkFactors": {"venue": "string", "historicalTendency": "string"},
+        "weatherConditions": {"forecast": "string"}
       },
       "finalVerdict": {
-        "compositeHitProbability": 88.5
-      }
-    },
-    {
-      "player": "Bobby Witt Jr.",
-      "team": "KC",
-      "position": "SS",
-      "corePerformance": {
-        "slashLine2025": ".290/.350/.510",
-        "OPS2025": ".860",
-        "activeHittingStreak": {"games": 3, "details": "3-game hitting streak (4-for-11, .364 AVG)"},
-        "recentPerformance": {
-           "last7GamesAvg": [0.250, 0.200, 0.300, 0.330, 0.280, 0.310, 0.260],
-           "last15GamesAvg": [0.260,0.280,0.220,0.310,0.300,0.270,0.290,0.320,0.250,0.280,0.330,0.260,0.300,0.290,0.270],
-           "last30GamesAvg": [0.280,0.270,0.290,0.260,0.300,0.310,0.250,0.280,0.290,0.320,0.270,0.260,0.300,0.290,0.280,0.310,0.270,0.290,0.300,0.280,0.260,0.290,0.310,0.300,0.280,0.270,0.290,0.300,0.320,0.280]
-        }
-      },
-      "statcastValidation": [
-        {"label": "Hard Hit %", "value": "48.0%", "percentile": 80},
-        {"label": "Barrel %", "value": "12.0%", "percentile": 78},
-        {"label": "Sprint Speed", "value": "30.1 ft/s", "percentile": 98},
-        {"label": "xwOBA", "value": ".365", "percentile": 82}
-      ],
-      "matchup": {
-        "pitcher": "Tarik Skubal",
-        "team": "DET",
-        "ERA": "2.90", "WHIP": "1.00", "battingAverageAgainst": ".220"
-      },
-      "synthesis": {
-        "predictiveModels": [
-          {"modelName": "Baseball Musings NN", "probability": "80.5%"},
-          {"modelName": "STREAKSENSE Alpha", "probability": "81.0%"}
-        ],
-        "BvPHistory": "2-for-8 (.250) vs Skubal",
-        "parkFactors": {"venue": "Kauffman Stadium", "historicalTendency": "Neutral"},
-        "weatherConditions": {"forecast": "Partly Cloudy, 78°F, Wind 8mph Out to CF"}
-      },
-      "finalVerdict": {
-        "compositeHitProbability": 82.1
+        "compositeHitProbability": 0.0
       }
     }
   ],
   "watchListCautionaryNotes": {
     "honorableMentions": [
-      {"player": "Aaron Judge", "team": "NYY", "description": "Consistently high exit velocities, facing a rookie pitcher."},
-      {"player": "Corbin Carroll", "team": "ARI", "description": "Speed threat, good matchup against a contact pitcher."}
+      {"player": "string", "team": "string", "description": "string"}
     ],
     "ineligiblePlayersToNote": [
-      {"player": "Mike Trout", "team": "LAA", "reason": "Day-to-day (minor injury)."},
-      {"player": "Ronald Acuña Jr.", "team": "ATL", "reason": "Scheduled day off."}
+      {"player": "string", "team": "string", "reason": "string"}
     ]
   }
-}`;
+}
+</SCHEMA>
+
+<TASK>
+Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself.
+</TASK>`;
 };
 
 export const fetchAnalysisForDate = async (date: string, humanReadableDate: string): Promise<AnalysisReport> => {
   const prompt = constructPrompt(date, humanReadableDate);
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
+    const model = ai.getGenerativeModel({
       model: modelName,
-      contents: prompt,
-      config: {
-        temperature: 0.5, 
-      }
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
     });
-    
-    let jsonText = (response.text ?? '').trim();
 
-    // Use a regex literal for clarity and to avoid escaping issues with string constructor
-    const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
-    const match = jsonText.match(fenceRegex);
-    if (match && match[1]) {
-      jsonText = match[1].trim();
-    }
+    const result = await model.generateContent(prompt);
+    const response = result.response;
     
+    let jsonText = response.text();
+
+    // The response should already be clean JSON due to responseMimeType,
+    // but keep cleanup logic as a fallback.
     if (!jsonText.startsWith('{')) {
         const jsonStartIndex = jsonText.indexOf('{');
         if (jsonStartIndex > -1) {
@@ -171,6 +144,6 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
     if (error instanceof Error && error.message.includes("candidate")) { 
         throw new Error("The AI model's response was blocked or incomplete. This might be due to safety settings or content policy. Please try a different query or date.");
     }
-    throw new Error(`Failed to fetch analysis data: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Failed to fetch analysis data: ${error instanceof Error? error.message : String(error)}`);
   }
 };

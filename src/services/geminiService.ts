@@ -127,7 +127,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
     const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
     const match = jsonText.match(fenceRegex);
     if (match && match[1]) {
-      jsonText = match.[1]trim();
+      jsonText = match[1].trim();
     }
 
     try {

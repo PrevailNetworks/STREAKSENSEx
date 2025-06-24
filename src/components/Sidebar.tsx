@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                 </ul>
             ) : (
                 <p className="text-xs text-[var(--text-secondary)] text-center py-2">No honorable mentions.</p> {/* Added text-center and padding */}
-            ){'}'}
+            )}
         </section>
         </>
       )}

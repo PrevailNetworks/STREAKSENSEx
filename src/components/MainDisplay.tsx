@@ -174,7 +174,7 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
                         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={hitterAnalysisRadarData}>
                             <PolarGrid stroke="var(--border-color)" />
                             <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
+                            <PolarRadiusAxis angle={0} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
                             <Radar name={player.player} dataKey="value" stroke="var(--primary-glow)" fill="var(--primary-glow)" fillOpacity={0.7} />
                             <RechartsTooltip 
                                 contentStyle={{backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '12px'}}
@@ -219,7 +219,7 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={hitterVsPitcherRadarData}>
                       <PolarGrid stroke="var(--border-color)" />
                       <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
+                      <PolarRadiusAxis angle={0} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
                       <Radar name={player.player} dataKey={player.player} stroke="var(--primary-glow)" fill="var(--primary-glow)" fillOpacity={0.6} />
                       <Radar name={matchup.pitcher} dataKey={matchup.pitcher} stroke="#ff4d4d" fill="#ff4d4d" fillOpacity={0.5} />
                       <Legend wrapperStyle={{fontSize: "10px", paddingTop: "10px"}}/>

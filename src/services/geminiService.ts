@@ -10,7 +10,7 @@ if (!API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
-const modelName = 'gemini-1.5-flash-latest'; 
+const modelName = 'gemini-2.5-flash-preview-04-17'; 
 
 const constructPrompt = (date: string, humanReadableDate: string): string => {
   return `<ROLE>

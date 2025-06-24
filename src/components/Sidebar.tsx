@@ -134,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                             onSelect={() => { /* Watchlist items are not selectable for main display */ }}
                             isSelected={false} 
                             isSelectable={false} 
-                            index={idx + (analysisData.recommendations?.length || 0)} 
+                            index={idx + analysisData.recommendations.length}
                         />
                     ))}
                 </ul>

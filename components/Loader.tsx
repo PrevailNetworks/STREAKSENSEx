@@ -14,7 +14,7 @@ export const Loader: React.FC<LoaderProps> = ({ message = "Loading..." }) => {
       >
         <span className="sr-only">Loading...</span>
       </div>
-      <p className="mt-4 font-['Orbitron'] tracking-wider text-lg">{message}</p>
+      <p className="mt-4 font-[var(--font-display)] tracking-wider text-lg">{message}</p>
     </div>
   );
 };

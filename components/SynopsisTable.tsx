@@ -68,10 +68,10 @@ export const SynopsisTable: React.FC<SynopsisTableProps> = ({ synopsis }) => {
 
   return (
     <section className="bg-[var(--bg-card)] p-6 rounded-lg shadow-xl border border-[var(--border-color)] backdrop-blur-sm">
-      <h2 className="text-2xl font-['Orbitron'] text-[var(--primary-glow)] mb-4">Top Recommendations Synopsis</h2>
+      <h2 className="text-2xl font-[var(--font-display)] text-[var(--primary-glow)] mb-4">Top Recommendations Synopsis</h2>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[600px] text-sm text-left text-[var(--text-secondary)]">
-          <thead className="text-xs text-[var(--text-primary)] uppercase bg-[rgba(0,191,255,0.05)]">
+          <thead className="text-xs text-[var(--text-primary)] uppercase bg-[rgba(132,204,22,0.05)]"> {/* Updated background color */}
             <tr>
               {synopsis.headers.map((header, index) => {
                 const keyForSort = headerToKeyMap[header];
@@ -85,7 +85,7 @@ export const SynopsisTable: React.FC<SynopsisTableProps> = ({ synopsis }) => {
           </thead>
           <tbody>
             {sortedData.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-[var(--border-color)] hover:bg-[rgba(0,191,255,0.03)]">
+              <tr key={rowIndex} className="border-b border-[var(--border-color)] hover:bg-[rgba(132,204,22,0.03)]"> {/* Updated hover background for consistency */}
                 {Object.values(row).map((cell, cellIndex) => (
                   <td key={cellIndex} className="px-6 py-4 text-[var(--text-primary)]">
                     {String(cell)}

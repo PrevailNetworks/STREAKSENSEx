@@ -10,13 +10,13 @@ interface PlayerCardProps {
 
 const StatDisplay: React.FC<{ label: string; value: string | number; className?: string }> = ({ label, value, className }) => (
   <div className={`text-center ${className}`}>
-    <span className="block text-xl sm:text-2xl font-bold font-['Orbitron'] text-[var(--text-primary)]">{value}</span>
+    <span className="block text-xl sm:text-2xl font-bold font-[var(--font-display)] text-[var(--text-primary)]">{value}</span>
     <span className="block text-xs text-[var(--text-secondary)] uppercase">{label}</span>
   </div>
 );
 
 const SectionTitle: React.FC<{ title: string }> = ({ title }) => (
-  <h3 className="text-lg font-['Orbitron'] text-[var(--primary-glow)] border-b border-[var(--border-color)] pb-2 mb-4 mt-2">
+  <h3 className="text-lg font-[var(--font-display)] text-[var(--primary-glow)] border-b border-[var(--border-color)] pb-2 mb-4 mt-2">
     {title}
   </h3>
 );
@@ -41,9 +41,9 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, cardIndex }) => 
 
   return (
     <article className="bg-[var(--bg-card)] rounded-lg shadow-xl border border-[var(--border-color)] overflow-hidden backdrop-blur-sm flex flex-col">
-      <header className="p-4 sm:p-6 bg-[rgba(0,191,255,0.05)] flex justify-between items-center">
+      <header className="p-4 sm:p-6 bg-[rgba(132,204,22,0.05)] flex justify-between items-center"> {/* Updated background color */}
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold font-['Orbitron'] text-[var(--text-primary)]">{player.player}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold font-[var(--font-display)] text-[var(--text-primary)]">{player.player}</h2>
           <p className="text-sm text-[var(--text-secondary)]">{player.team} - {player.position}</p>
         </div>
         <div className="w-24 h-24 sm:w-28 sm:h-28">
@@ -71,7 +71,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, cardIndex }) => 
                 y="50%"
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="fill-[var(--text-primary)] text-xl sm:text-2xl font-bold font-['Orbitron']"
+                className="fill-[var(--text-primary)] text-xl sm:text-2xl font-bold font-[var(--font-display)]"
               >
                 {finalVerdict.compositeHitProbability}%
               </text>
@@ -118,7 +118,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, cardIndex }) => 
                   <span className="text-[var(--text-primary)]">{metric.label}: {metric.value}</span>
                   <span className="text-[var(--text-secondary)]">{metric.percentile}th Pctl</span>
                 </div>
-                <div className="w-full bg-[rgba(0,191,255,0.1)] rounded h-2.5">
+                <div className="w-full bg-[rgba(132,204,22,0.1)] rounded h-2.5"> {/* Updated background color for track */}
                   <div
                     className="bg-[var(--accent-positive)] h-2.5 rounded"
                     style={{ width: `${metric.percentile}%` }}

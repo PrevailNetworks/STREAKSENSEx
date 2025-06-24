@@ -9,7 +9,7 @@ interface WatchListCardProps {
 export const WatchListCard: React.FC<WatchListCardProps> = ({ watchList }) => {
   return (
     <section className="bg-[var(--bg-card)] p-6 rounded-lg shadow-xl border border-[var(--border-color)] backdrop-blur-sm">
-      <h2 className="text-2xl font-['Orbitron'] text-[var(--primary-glow)] mb-4">Watch List & Cautionary Notes</h2>
+      <h2 className="text-2xl font-[var(--font-display)] text-[var(--primary-glow)] mb-4">Watch List & Cautionary Notes</h2>
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Honorable Mentions</h3>

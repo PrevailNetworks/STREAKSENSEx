@@ -25,13 +25,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
     if (sectionText.match(/^(\s*(\*|-)\s+.*)(\n\s*(\*|-)\s+.*)*$/s)) {
       const items = sectionText.split('\n').map(item => item.trim().replace(/^(\*|-)\s*/, '')).filter(Boolean);
       return (
-        <ul className="list-disc list-inside space-y-1 pl-4 mb-3">
-          {items.map((item, index) => <li key={index} className="text-xs font-normal text-[var(--text-secondary)]">{parseInlineMarkdown(item)}</li>)}
+        <ul className="list-disc list-inside pl-4"> {/* Default prose margins/spacing will apply */}
+          {items.map((item, index) => <li key={index}>{parseInlineMarkdown(item)}</li>)}
         </ul>
       );
     }
     
-    return <p className="text-xs font-normal text-[var(--text-secondary)] leading-relaxed mb-3">{parseInlineMarkdown(sectionText)}</p>;
+    // Default prose margins/spacing will apply
+    return <p>{parseInlineMarkdown(sectionText)}</p>;
   };
 
   const parseInlineMarkdown = (text: string): React.ReactNode => {
@@ -46,7 +47,34 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   };
 
   return (
-    <div className="prose font-['Open_Sans'] max-w-none text-[var(--text-secondary)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-primary)]">
+    <div className={`
+      prose 
+      font-['Open_Sans'] 
+      max-w-none 
+      /* Base text color for prose, overridden by specific element styles below */
+      text-[var(--text-secondary)] 
+      prose-headings:text-[var(--text-primary)] 
+      prose-strong:text-[var(--text-primary)] 
+      prose-em:text-[var(--text-primary)]
+      
+      /* Paragraphs: Open Sans, 12pt (text-xs), regular (font-normal), specific color */
+      prose-p:font-['Open_Sans'] /* Ensures Open Sans, though inherited */
+      prose-p:text-xs 
+      prose-p:font-normal 
+      prose-p:text-[var(--text-secondary)]
+      prose-p:leading-relaxed /* Restore leading if needed */
+      prose-p:mb-3 /* Restore bottom margin if needed */
+
+      /* List items: Open Sans, 12pt (text-xs), regular (font-normal), specific color */
+      prose-li:font-['Open_Sans'] /* Ensures Open Sans, though inherited */
+      prose-li:text-xs 
+      prose-li:font-normal 
+      prose-li:text-[var(--text-secondary)]
+      
+      /* Unordered Lists: Restore bottom margin if needed */
+      prose-ul:mb-3
+      prose-ul:space-y-1 /* Restore space between list items if needed */
+    `}>
       {sections.map((section, index) => (
         <React.Fragment key={index}>
           {renderSection(section)}

@@ -60,9 +60,10 @@ export interface SynthesisData {
   BvPHistory?: string;
   parkFactors?: ParkFactor;
   weatherConditions?: WeatherCondition;
-  // Optional: Data for hitter vs pitcher radar chart
-  hitterStrengths?: Record<string, number>; // e.g., { "Contact": 80, "Power": 75 ... }
-  pitcherProfile?: Record<string, number>; // e.g., { "vsFastball": 70, "vsBreaking": 65 ... }
+  hitterStrengths?: Record<string, number>; // For Hitter vs Pitcher Radar (e.g., { "Contact": 80, "Power": 75 ... })
+  pitcherProfile?: Record<string, number>; // For Hitter vs Pitcher Radar (e.g., { "Stuff": 70, "Control": 65 ... })
+  // For new Hitter Analysis Radar chart on Verdict tab
+  hitterRadarMetrics?: Record<string, number>; // e.g., {"xBA": 75, "HardHitPct": 88, "AvgExitVelo": 92 } (values are percentiles 0-100)
 }
 
 export interface CorePerformanceData {
@@ -79,6 +80,7 @@ export interface PlayerData {
   player: string;
   team: string;
   position: string;
+  imageUrl?: string; // Optional URL for player's image
   corePerformance: CorePerformanceData;
   statcastValidation: StatcastMetric[];
   matchup: MatchupData;
@@ -86,7 +88,6 @@ export interface PlayerData {
   finalVerdict: {
     compositeHitProbability: number; 
   };
-  // Optional: A specific short "verdict" text for the player for the "Verdict" tab
   playerSpecificVerdict?: string;
 }
 
@@ -94,7 +95,7 @@ export interface HonorableMention {
   player: string;
   team: string;
   description: string;
-  compositeHitProbability?: number; // Optional probability for watchlist items
+  compositeHitProbability?: number; 
 }
 
 export interface IneligiblePlayer {

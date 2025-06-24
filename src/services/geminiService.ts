@@ -25,14 +25,10 @@ The user requires a comprehensive analysis report for MLB games scheduled on ${d
 <RULES>
 1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
 2.  **Exactly 5 Recommendations:** The "recommendations" array in the JSON MUST contain exactly 5 player objects. No more, no less.
-3.  **Complete Data Population:** All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like \`playerSpecificVerdict\` within the recommendation object structure) MUST be populated with a valid, non-null, and non-empty value of the correct type. This is critical. Pay special attention to populating all nested objects and arrays, including:
-    - \`executiveSummary.situationalOverview\`
-    - \`executiveSummary.keyTableSynopsis.data\` (must contain data for the 5 recommended players and all its fields)
-    - All fields within each of the 5 \`recommendations\` objects, *except for the explicitly optional ones listed below*.
-    - \`corePerformance.recentPerformance\` arrays (\`last7GamesAvg\`, \`last15GamesAvg\`, \`last30GamesAvg\`) must be fully populated with numerical arrays of appropriate length (e.g., 7, 15, 30 numbers).
-    - \`statcastValidation\` array must be fully populated with 4 distinct metrics.
-    - \`synthesis.predictiveModels\` array must be fully populated with at least 2 distinct models.
-    - **Optional Fields within each recommendation:** \`playerSpecificVerdict\` (string), \`matchup.pitchVulnerabilities\` (array of objects), \`synthesis.hitterStrengths\` (object), \`synthesis.pitcherProfile\` (object). Populate these with appropriate data if available and relevant; otherwise, they can be omitted from the player object or provided as empty structures (e.g., empty array \`[]\` or empty object \`{}\`) if data is not available or not applicable.
+3.  **Complete Data Population:** All fields listed in the main part of the schema (excluding those explicitly noted as optional examples like \`playerSpecificVerdict\` or \`imageUrl\` within the recommendation object structure) MUST be populated with a valid, non-null, and non-empty value of the correct type. This is critical. Pay special attention to populating all nested objects and arrays.
+    - \`executiveSummary.keyTableSynopsis.data\` MUST contain data for the 5 recommended players.
+    - **Shared Radar Chart Keys:** For \`hitterStrengths\` and \`pitcherProfile\` in the \`synthesis\` object of each recommendation, you MUST use the following 5-6 keys consistently: "Contact", "Power", "Discipline", "AvoidK", "Speed", "Adaptability". Populate these with percentile scores (0-100) representing the player's skill or the pitcher's vulnerability/strength related to that aspect.
+    - **Optional Fields:** \`playerSpecificVerdict\`, \`imageUrl\`, \`matchup.pitchVulnerabilities\`, \`synthesis.hitterStrengths\`, \`synthesis.pitcherProfile\`, \`synthesis.hitterRadarMetrics\`. Populate these with appropriate data if available and relevant; otherwise, they can be omitted or provided as empty structures (e.g., empty array \`[]\` or empty object \`{}\`).
 4.  **Data Accuracy:** All data, including stats, probabilities, and player details, should be as accurate as possible for the given date. Ensure streak data is current.
 </RULES>
 
@@ -47,9 +43,6 @@ You MUST generate a JSON object that strictly adheres to the following structure
     "keyTableSynopsis": {
       "headers": ["Player", "Team", "Pos", "Composite Prob.", "Neural Net Prob.", "Streak (Games)"],
       "data": [
-        // This array MUST be populated with 5 objects, one for each player in the 'recommendations' array.
-        // The data for each object should be derived from the corresponding player in 'recommendations'.
-        // Example structure for one player:
         {
           "player": "Name of 1st Recommended Player",
           "team": "Team of 1st Recommended Player",
@@ -58,95 +51,86 @@ You MUST generate a JSON object that strictly adheres to the following structure
           "modelXProb": "Relevant Model Probability of 1st Recommended Player (as string with %)",
           "streak": "Hitting Streak of 1st Recommended Player (string or number, e.g., '5' or 'N/A')"
         }
-        // ... (repeat this structure for the other 4 recommended players, using their respective data)
-      ],
-      "notes": ["Probabilities are based on a combination of proprietary models and expert analysis.", "Streak refers to active hitting streak."]
+        // ... (repeat this structure for the other 4 recommended players)
+      ]
     }
   },
   "recommendations": [
-    // THIS IS AN EXAMPLE STRUCTURE FOR ONE PLAYER.
-    // YOU MUST GENERATE EXACTLY 5 PLAYER OBJECTS IN THIS ARRAY.
-    // Each player object must be unique, based on YOUR analysis for the given date,
-    // and fully populated according to this detailed structure.
     {
-      "player": "Shohei Ohtani (Example Player for Structure)", // AI REPLACES THIS with an actual analyzed player
-      "team": "LAD (Example Team)", // AI REPLACES THIS
-      "position": "DH (Example Position)", // AI REPLACES THIS
-      "playerSpecificVerdict": "Ohtani's elite plate discipline and hard-hit ability make him a prime candidate against RHP. His recent form suggests a high likelihood of extending his hitting streak, especially considering the favorable park factors and the opposing pitcher's slight vulnerability to left-handed power hitters. (Example text, AI should generate specific verdict for the analyzed player)",
+      "player": "Shohei Ohtani (Example Player for Structure)",
+      "team": "LAD (Example Team)",
+      "position": "DH (Example Position)",
+      "imageUrl": "https://a.espncdn.com/combiner/i?img=/i/headshots/mlb/players/full/39832.png&w=350&h=254 (Example URL, provide if known, otherwise omit)",
+      "playerSpecificVerdict": "Ohtani's elite plate discipline and hard-hit ability make him a prime candidate. (Example text)",
       "corePerformance": {
-        "slashLine2025": ".310/.405/.650 (Example Format)", // AI generates actual stat for analyzed player
-        "OPS2025": "1.055 (Example Format)", // AI generates actual stat
-        "activeHittingStreak": {"games": "5 (Example)", "details": "5-game hitting streak (9-for-22, .409 AVG, 2 HR) (Example details)"}, // AI generates actual data
-        "recentPerformance": { // AI generates actual arrays of numbers for analyzed player
-          "last7GamesAvg": [0.280, 0.300, 0.320, 0.250, 0.400, 0.350, 0.380], // Example data points, AI generates real data
-          "last15GamesAvg": [0.290, 0.270, 0.310, 0.330, 0.260, 0.300, 0.350, 0.280, 0.320, 0.360, 0.290, 0.310, 0.300, 0.340, 0.370], // Example data points
-          "last30GamesAvg": [0.300, 0.280, 0.290, 0.310, 0.320, 0.270, 0.300, 0.330, 0.350, 0.290, 0.280, 0.310, 0.340, 0.300, 0.320, 0.330, 0.290, 0.300, 0.310, 0.320, 0.300, 0.290, 0.330, 0.340, 0.310, 0.300, 0.280, 0.320, 0.350, 0.360]  // Example data points
+        "slashLine2025": ".310/.405/.650 (Example Format)",
+        "OPS2025": "1.055 (Example Format)",
+        "activeHittingStreak": {"games": "5 (Example)", "details": "5-game hitting streak (9-for-22, .409 AVG, 2 HR) (Example details)"},
+        "recentPerformance": {
+          "last7GamesAvg": [0.280, 0.300, 0.320, 0.250, 0.400, 0.350, 0.380],
+          "last15GamesAvg": [0.290, 0.270, 0.310, 0.330, 0.260, 0.300, 0.350, 0.280, 0.320, 0.360, 0.290, 0.310, 0.300, 0.340, 0.370],
+          "last30GamesAvg": [0.300, 0.280, 0.290, 0.310, 0.320, 0.270, 0.300, 0.330, 0.350, 0.290, 0.280, 0.310, 0.340, 0.300, 0.320, 0.330, 0.290, 0.300, 0.310, 0.320, 0.300, 0.290, 0.330, 0.340, 0.310, 0.300, 0.280, 0.320, 0.350, 0.360]
         }
       },
-      "statcastValidation": [ // AI generates 4 distinct metrics for the analyzed player
+      "statcastValidation": [
         {"label": "Hard Hit %", "value": "55.2% (Example Format)", "percentile": 92},
         {"label": "Barrel %", "value": "18.5% (Example Format)", "percentile": 95},
         {"label": "Avg Exit Velocity", "value": "94.1 mph (Example Format)", "percentile": 93},
         {"label": "xwOBA", "value": ".410 (Example Format)", "percentile": 94}
       ],
-      "matchup": { // AI generates actual matchup data for the analyzed player
+      "matchup": {
         "pitcher": "Logan Webb (Example Pitcher)", "team": "SFG (Example Opponent Team)", "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
-        "pitchVulnerabilities": [ // Optional: AI populates if relevant for analyzed pitcher, 2-4 items ideally
-            {"pitchType": "Sinker", "vulnerabilityScore": 0.18}, // Score 0.0 to 1.0
-            {"pitchType": "Changeup", "vulnerabilityScore": 0.25},
-            {"pitchType": "Slider", "vulnerabilityScore": 0.12}
+        "pitchVulnerabilities": [
+            {"pitchType": "Sinker", "vulnerabilityScore": 0.18},
+            {"pitchType": "Changeup", "vulnerabilityScore": 0.25}
         ]
       },
-      "synthesis": { // AI generates actual synthesis data for the analyzed player
-        "predictiveModels": [ // AI generates at least 2 distinct models for the analyzed player
+      "synthesis": {
+        "predictiveModels": [
           {"modelName": "Baseball Musings NN (Example Model)", "probability": "85.0%"},
           {"modelName": "STREAKSENSE Alpha (Example Model)", "probability": "87.0%"}
         ],
-        "BvPHistory": "5-for-12 (.417), 2 HR vs Webb (Example, AI generates actual BvP or null/omits if not notable)",
+        "BvPHistory": "5-for-12 (.417), 2 HR vs Webb (Example)",
         "parkFactors": {"venue": "Dodger Stadium (Example Venue)", "historicalTendency": "Slightly Hitter-Friendly (Example Tendency)"},
         "weatherConditions": {"forecast": "Clear, 72°F, Wind 5mph L to R (Example Forecast)"},
-        "hitterStrengths": { // Optional: AI populates if relevant for analyzed player; keys should be consistent; 5-6 key aspects
-            "ContactSkill": 85, "PowerHardHit": 92, "PitchRecognition": 78, "vsRHP": 88, "PlateDiscipline": 80, "Speed": 70
+        "hitterStrengths": { 
+            "Contact": 85, "Power": 92, "Discipline": 78, "AvoidK": 88, "Speed": 70, "Adaptability": 80 
         },
-        "pitcherProfile": { // Optional: AI populates if relevant for analyzed pitcher; keys should be consistent; 5-6 key aspects
-            "vsFastball": 65, "vsBreaking": 72, "Command": 80, "GroundballRate": 60, "KRate": 75, "vsLHB": 55
+        "pitcherProfile": { 
+            "Contact": 60, "Power": 55, "Discipline": 65, "AvoidK": 70, "Speed": 40, "Adaptability": 75 
+        },
+        "hitterRadarMetrics": {
+            "xBA": 88, "HardHitPct": 92, "AvgExitVelo": 94, "BarrelPct": 85, "ChaseRate": 70, "WhiffPct": 75
         }
       },
-      "finalVerdict": { // AI generates actual composite probability for the analyzed player
+      "finalVerdict": {
         "compositeHitProbability": 88.5
       }
     }
-    // Reminder: Generate 4 MORE unique player objects like the example above,
-    // ensuring all data is specific to YOUR analysis for the requested date and players.
+    // Reminder: Generate 4 MORE unique player objects like the example above.
   ],
   "watchListCautionaryNotes": {
     "honorableMentions": [
-      // Generate 0 to 3 plausible honorable mentions for the given date.
-      // If none, provide an empty array []. Otherwise, each object should follow this structure:
       {
-        "player": "Example Honorable Mention Player Name", // AI generates actual player
-        "team": "XYZ (Example Team)", // AI generates actual team
-        "description": "Reason for honorable mention (e.g., strong recent performance, favorable matchup).", // AI generates actual description
-        "compositeHitProbability": 72.3 // Optional: AI provides a hit probability if sensible.
+        "player": "Example Honorable Mention Player Name", 
+        "team": "XYZ (Example Team)",
+        "description": "Reason for honorable mention.",
+        "compositeHitProbability": 72.3
       }
-      // ... more honorable mentions if applicable (up to 3 total)
     ],
     "ineligiblePlayersToNote": [
-      // Generate 0 to 3 plausible ineligible players for the given date (e.g., due to injury, day off).
-      // If none, provide an empty array []. Otherwise, each object should follow this structure:
       {
-        "player": "Example Ineligible Player Name", // AI generates actual player
-        "team": "ABC (Example Team)", // AI generates actual team
-        "reason": "Reason for ineligibility (e.g., 'Day-to-day (minor injury)', 'Scheduled day off')." // AI generates actual reason
+        "player": "Example Ineligible Player Name", 
+        "team": "ABC (Example Team)",
+        "reason": "Reason for ineligibility."
       }
-      // ... more ineligible players if applicable (up to 3 total)
     ]
   }
 }
 </SCHEMA>
 
 <TASK>
-Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. Ensure all data is generated based on your expert analysis for the specified date.
+Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations.
 </TASK>`;
 };
 
@@ -158,7 +142,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
         contents: [{ parts: [{ text: prompt }] }],
         config: {
             responseMimeType: "application/json",
-            temperature: 0.4, // Slightly lower for more deterministic structured output
+            temperature: 0.4, 
         },
     });
     
@@ -166,13 +150,11 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
 
     if (!jsonText) {
       console.error("Received empty or undefined text response from AI.");
-      // Attempt to get more info from the response if available
       const fullResponse = JSON.stringify(result, null, 2);
       console.error("Full AI Response:", fullResponse.substring(0, 1000));
       throw new Error("Received empty response from AI. Check console for more details.");
     }
 
-    // Defensively clean the response to remove markdown fences.
     const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
     const match = jsonText.match(fenceRegex);
     if (match && match[1]) {
@@ -181,22 +163,18 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
 
     try {
       const parsedData: AnalysisReport = JSON.parse(jsonText);
-      // Basic validation: Check for the presence of recommendations array and its length
       if (!parsedData.recommendations || parsedData.recommendations.length !== 5) {
         console.warn("Parsed data is missing 'recommendations' or does not have 5 items.", parsedData);
-        // Potentially throw an error if this is a strict requirement for rendering
-        // For now, let it pass but log a warning.
       }
       return parsedData;
     } catch (e) {
       console.error("Failed to parse JSON response:", e);
-      console.error("Problematic JSON string attempt:", jsonText.substring(0,1000) + "..."); // Log more of the string
+      console.error("Problematic JSON string attempt:", jsonText.substring(0,1000) + "...");
       throw new Error(`Failed to parse analysis data from AI. Raw response snippet: ${jsonText.substring(0,500)}...`);
     }
 
   } catch (error) {
     console.error('Error fetching data from Gemini:', error);
-     // Log the full error object if it's not a simple string
     if (typeof error === 'object' && error !== null) {
         console.error('Full error object:', JSON.stringify(error, null, 2));
     }

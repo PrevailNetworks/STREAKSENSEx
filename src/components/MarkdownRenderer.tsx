@@ -25,13 +25,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
     if (sectionText.match(/^(\s*(\*|-)\s+.*)(\n\s*(\*|-)\s+.*)*$/s)) {
       const items = sectionText.split('\n').map(item => item.trim().replace(/^(\*|-)\s*/, '')).filter(Boolean);
       return (
-        <ul className="list-disc list-inside space-y-1 text-[var(--text-secondary)] pl-4 mb-3">
+        <ul className="list-disc list-inside space-y-1 text-xs text-[var(--text-secondary)] pl-4 mb-3">
           {items.map((item, index) => <li key={index}>{parseInlineMarkdown(item)}</li>)}
         </ul>
       );
     }
     
-    return <p className="text-[var(--text-secondary)] leading-relaxed mb-3">{parseInlineMarkdown(sectionText)}</p>;
+    // Apply text-xs directly to paragraphs
+    return <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">{parseInlineMarkdown(sectionText)}</p>;
   };
 
   const parseInlineMarkdown = (text: string): React.ReactNode => {
@@ -45,8 +46,10 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
     return <>{parts}</>;
   };
 
+  // Removed prose-p:text-xs, prose-li:text-xs etc. from here.
+  // The text-[var(--text-secondary)] on the root serves as a fallback.
   return (
-    <div className="prose prose-p:text-xs prose-li:text-xs prose-ul:text-xs prose-ol:text-xs font-['Open_Sans'] max-w-none text-[var(--text-secondary)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-primary)]">
+    <div className="prose font-['Open_Sans'] max-w-none text-[var(--text-secondary)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-primary)]">
       {sections.map((section, index) => (
         <React.Fragment key={index}>
           {renderSection(section)}

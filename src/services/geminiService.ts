@@ -113,14 +113,21 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
 
     const result: GenerateContentResponse = await ai.models.generateContent({
         model: modelName,
-     ...request
+    ...request
     });
     
-    const jsonText = result.text;
+    let jsonText = result.text;
 
     if (!jsonText) {
       console.error("Received empty or undefined text response from AI.");
       throw new Error("Received empty response from AI.");
+    }
+
+    // Defensively clean the response to remove markdown fences.
+    const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
+    const match = jsonText.match(fenceRegex);
+    if (match && match[1]) {
+      jsonText = match.[1]trim();
     }
 
     try {

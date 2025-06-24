@@ -6,7 +6,7 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
   if (!content) {
-    return <p className="font-['Open_Sans'] text-xs text-[var(--text-secondary)]">No detailed analysis available.</p>;
+    return <p className="font-['Open_Sans'] text-xs font-normal text-[var(--text-secondary)]">No detailed analysis available.</p>;
   }
 
   const sections = content.split(/\n\s*\n/).map(section => section.trim()).filter(Boolean);
@@ -25,14 +25,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
     if (sectionText.match(/^(\s*(\*|-)\s+.*)(\n\s*(\*|-)\s+.*)*$/s)) {
       const items = sectionText.split('\n').map(item => item.trim().replace(/^(\*|-)\s*/, '')).filter(Boolean);
       return (
-        <ul className="list-disc list-inside space-y-1 text-xs text-[var(--text-secondary)] pl-4 mb-3">
-          {items.map((item, index) => <li key={index}>{parseInlineMarkdown(item)}</li>)}
+        <ul className="list-disc list-inside space-y-1 pl-4 mb-3">
+          {items.map((item, index) => <li key={index} className="text-xs font-normal text-[var(--text-secondary)]">{parseInlineMarkdown(item)}</li>)}
         </ul>
       );
     }
     
-    // Apply text-xs directly to paragraphs
-    return <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-3">{parseInlineMarkdown(sectionText)}</p>;
+    return <p className="text-xs font-normal text-[var(--text-secondary)] leading-relaxed mb-3">{parseInlineMarkdown(sectionText)}</p>;
   };
 
   const parseInlineMarkdown = (text: string): React.ReactNode => {
@@ -46,8 +45,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
     return <>{parts}</>;
   };
 
-  // Removed prose-p:text-xs, prose-li:text-xs etc. from here.
-  // The text-[var(--text-secondary)] on the root serves as a fallback.
   return (
     <div className="prose font-['Open_Sans'] max-w-none text-[var(--text-secondary)] prose-headings:text-[var(--text-primary)] prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-primary)]">
       {sections.map((section, index) => (

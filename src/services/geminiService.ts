@@ -14,7 +14,7 @@ const ai = new GoogleGenAI({ apiKey: API_KEY });
 const modelName = 'gemini-2.5-flash-preview-04-17'; 
 
 const constructPrompt = (date: string, humanReadableDate: string): string => {
-  return \`System: You are an expert MLB analyst, STREAKSENSE. Provide a detailed player performance analysis report for the date ${date} (which is ${humanReadableDate}) in JSON format.
+  return `System: You are an expert MLB analyst, STREAKSENSE. Provide a detailed player performance analysis report for the date ${date} (which is ${humanReadableDate}) in JSON format.
 The JSON structure MUST be exactly as follows. Do not add any extra text before or after the JSON block. Ensure all string values are properly escaped within the JSON.
 Do not use markdown like \`\`\`json or \`\`\` around the JSON response.
 
@@ -121,7 +121,7 @@ Do not use markdown like \`\`\`json or \`\`\` around the JSON response.
       {"player": "Ronald Acuña Jr.", "team": "ATL", "reason": "Scheduled day off."}
     ]
   }
-}\`;
+}`;
 };
 
 export const fetchAnalysisForDate = async (date: string, humanReadableDate: string): Promise<AnalysisReport> => {
@@ -163,7 +163,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
     } catch (e) {
       console.error("Failed to parse JSON response:", e);
       console.error("Problematic JSON string:", jsonText);
-      throw new Error(\`Failed to parse analysis data from AI. Raw response: \${jsonText.substring(0,500)}...\`);
+      throw new Error(`Failed to parse analysis data from AI. Raw response: ${jsonText.substring(0,500)}...`);
     }
 
   } catch (error) {
@@ -171,6 +171,6 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
     if (error instanceof Error && error.message.includes("candidate")) { 
         throw new Error("The AI model's response was blocked or incomplete. This might be due to safety settings or content policy. Please try a different query or date.");
     }
-    throw new Error(\`Failed to fetch analysis data: \${error instanceof Error ? error.message : String(error)}\`);
+    throw new Error(`Failed to fetch analysis data: ${error instanceof Error ? error.message : String(error)}`);
   }
 };

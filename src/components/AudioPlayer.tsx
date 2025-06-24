@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiPlay, FiPause, FiVolume2, FiVolumeX, FiLoader } from 'react-icons/fi';
-import { formatDateToMMDDYY } from '@/utils/dateUtils'; // We'll create this utility
+import { formatDateToMMDDYY } from '@/utils/dateUtils';
 
 interface AudioPlayerProps {
   selectedDate: Date;
@@ -24,20 +24,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
     setAudioSrc(src);
     setIsLoading(true);
     setError(null);
-    setIsPlaying(false); // Reset play state when date changes
-    setCurrentTime(0); // Reset current time
-    setDuration(0); // Reset duration
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
   }, [selectedDate]);
 
   useEffect(() => {
     if (audioRef.current && audioSrc) {
       audioRef.current.src = audioSrc;
       audioRef.current.volume = isMuted ? 0 : volume;
-      // Autoplay is generally not recommended and often blocked
-      // If you need autoplay, consider adding a user setting or interaction first
-      // audioRef.current.play().catch(e => console.warn("Autoplay prevented:", e));
+      audioRef.current.load(); // Explicitly tell the browser to load the new source
     }
-  }, [audioSrc, volume, isMuted]); // React to audioSrc, volume, and isMuted changes
+  }, [audioSrc, volume, isMuted]);
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
@@ -55,37 +53,62 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
 
   const handleAudioEnded = () => {
     setIsPlaying(false);
-    setCurrentTime(0); // Optionally reset to beginning
+    setCurrentTime(0);
   };
 
   const handleAudioError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+    let message = "Daily overview audio not available.";
     if (audioRef.current && audioRef.current.error) {
-        console.error("Audio Error Code:", audioRef.current.error.code, "Message:", audioRef.current.error.message);
+        console.error("Audio Element Error Code:", audioRef.current.error.code, "Message:", audioRef.current.error.message);
+        switch(audioRef.current.error.code) {
+            case MediaError.MEDIA_ERR_ABORTED:
+                message = "Audio playback aborted.";
+                break;
+            case MediaError.MEDIA_ERR_NETWORK:
+                message = "Network error prevented audio playback.";
+                break;
+            case MediaError.MEDIA_ERR_DECODE:
+                message = "Error decoding audio file.";
+                break;
+            case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                message = "Audio format not supported or file unavailable.";
+                break;
+            default:
+                message = "An unknown audio error occurred.";
+        }
     } else {
         console.error("Audio Error event:", e);
     }
-    setError("Daily overview audio not available.");
+    setError(message);
     setIsLoading(false);
     setDuration(0);
     setCurrentTime(0);
+  };
+
+  const handlePlayPromiseError = (playError: any) => {
+    console.error("Error attempting to play audio (Promise Rejection):", playError);
+    // Set error only if not already set by an `onerror` event from the audio tag
+    if (!error) { 
+        setError("Failed to start audio playback.");
+    }
+    setIsPlaying(false);
+    setIsLoading(false); 
   };
 
   const togglePlayPause = () => {
     if (!audioRef.current || error || isLoading) return;
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play().catch(e => {
-        // Handle play promise rejection, which can happen for various reasons
-        // including the audio source not being loaded yet or an error occurring.
-        console.error("Error attempting to play audio:", e);
-        // Call handleAudioError to set error state if not already set by an `onerror` event
-        if (!error) {
-           handleAudioError(e as unknown as React.SyntheticEvent<HTMLAudioElement, Event>); // Cast for now, or refine error handling
-        }
-      });
+      audioRef.current.play()
+        .then(() => {
+          setIsPlaying(true);
+          // If a previous error existed (e.g. from file not found initially, then it was found), clear it on successful play
+          if (error) setError(null); 
+        })
+        .catch(handlePlayPromiseError);
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleProgressChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,16 +130,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
     if (!audioRef.current) return;
     if (isMuted) {
       setIsMuted(false);
-      audioRef.current.volume = volume > 0 ? volume : 0.1; // Restore to previous or small volume
-      if (volume === 0) setVolume(0.1); // Ensure volume state reflects unmuted state
+      audioRef.current.volume = volume > 0 ? volume : 0.1;
+      if (volume === 0) setVolume(0.1);
     } else {
       setIsMuted(true);
       audioRef.current.volume = 0;
     }
   };
 
-
   const formatTime = (time: number) => {
+    if (isNaN(time) || time === Infinity || time < 0) return '0:00';
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -130,8 +153,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleAudioEnded}
         onError={handleAudioError}
-        preload="metadata" // Important for getting duration without full load
-        src={audioSrc || undefined} // Explicitly set src here
+        preload="metadata"
+        // src attribute is set in useEffect
       />
       <div className="flex items-center justify-between">
         <button
@@ -142,8 +165,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
         >
           {isLoading ? <FiLoader className="w-5 h-5 animate-spin" /> : (isPlaying ? <FiPause className="w-5 h-5" /> : <FiPlay className="w-5 h-5" />)}
         </button>
-        <div className="text-xs text-[var(--text-secondary)]">
-          {error ? error : `${formatTime(currentTime)} / ${formatTime(duration)}`}
+        <div className="text-xs text-[var(--text-secondary)] min-w-[80px] text-center">
+          {error && !isLoading ? error : `${formatTime(currentTime)} / ${formatTime(duration)}`}
         </div>
         <div className="relative flex items-center">
             <button 
@@ -151,13 +174,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
                 onClick={toggleMute}
                 className="text-[var(--text-secondary)] hover:text-[var(--primary-glow)] transition-colors mr-2"
                 onMouseEnter={() => setShowVolumeSlider(true)}
-                onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 300)} // Delay hide
+                onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 300)}
             >
                 {isMuted || volume === 0 ? <FiVolumeX className="w-4 h-4" /> : <FiVolume2 className="w-4 h-4" />}
             </button>
             {showVolumeSlider && (
                  <div 
-                    className="absolute right-0 top-1/2 -translate-y-1/2  transform translate-x-[calc(100%_+_8px)] z-10" // Position to the right of the icon
+                    className="absolute right-0 top-1/2 -translate-y-1/2 transform translate-x-[calc(100%_+_8px)] z-10"
                     onMouseEnter={() => setShowVolumeSlider(true)} 
                     onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 300)}
                  >
@@ -169,6 +192,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
                         value={isMuted ? 0 : volume}
                         onChange={handleVolumeChange}
                         className="w-20 h-2 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--primary-glow)]"
+                        aria-label="Volume"
                     />
                  </div>
             )}

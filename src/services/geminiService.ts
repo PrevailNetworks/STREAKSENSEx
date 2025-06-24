@@ -2,12 +2,12 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import type { AnalysisReport } from '../types';
 
-// Vite exposes env variables through import.meta.env
-const API_KEY = import.meta.env.VITE_API_KEY;
+// Use process.env.API_KEY as per guidelines
+const API_KEY = process.env.API_KEY;
 
 if (!API_KEY) {
   // This will be caught by the App component and shown to the user.
-  throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your.env file (for local development) or hosting provider's settings to use STREAKSENSE.");
+  throw new Error("API_KEY environment variable is not set. Please configure it to use STREAKSENSE.");
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -47,83 +47,104 @@ You MUST generate a JSON object that strictly adheres to the following structure
     "keyTableSynopsis": {
       "headers": ["Player", "Team", "Pos", "Composite Prob.", "Neural Net Prob.", "Streak (Games)"],
       "data": [
-        {"player": "Shohei Ohtani", "team": "LAD", "pos": "DH", "compositeProb": "88.5%", "modelXProb": "85.0%", "streak": "5"},
-        {"player": "Bobby Witt Jr.", "team": "KC", "pos": "SS", "compositeProb": "82.1%", "modelXProb": "80.5%", "streak": "3"},
-        {"player": "Juan Soto", "team": "NYY", "pos": "OF", "compositeProb": "79.5%", "modelXProb": "77.0%", "streak": "N/A"},
-        {"player": "Player Four", "team": "ATL", "pos": "3B", "compositeProb": "75.0%", "modelXProb": "72.0%", "streak": "2"},
-        {"player": "Player Five", "team": "HOU", "pos": "2B", "compositeProb": "73.3%", "modelXProb": "70.1%", "streak": "N/A"}
+        // This array MUST be populated with 5 objects, one for each player in the 'recommendations' array.
+        // The data for each object should be derived from the corresponding player in 'recommendations'.
+        // Example structure for one player:
+        {
+          "player": "Name of 1st Recommended Player",
+          "team": "Team of 1st Recommended Player",
+          "pos": "Position of 1st Recommended Player",
+          "compositeProb": "Composite Probability of 1st Recommended Player (as string with %)",
+          "modelXProb": "Relevant Model Probability of 1st Recommended Player (as string with %)",
+          "streak": "Hitting Streak of 1st Recommended Player (string or number, e.g., '5' or 'N/A')"
+        }
+        // ... (repeat this structure for the other 4 recommended players, using their respective data)
       ],
       "notes": ["Probabilities are based on a combination of proprietary models and expert analysis.", "Streak refers to active hitting streak."]
     }
   },
   "recommendations": [
+    // THIS IS AN EXAMPLE STRUCTURE FOR ONE PLAYER.
+    // YOU MUST GENERATE EXACTLY 5 PLAYER OBJECTS IN THIS ARRAY.
+    // Each player object must be unique, based on YOUR analysis for the given date,
+    // and fully populated according to this detailed structure.
     {
-      "player": "Shohei Ohtani",
-      "team": "LAD",
-      "position": "DH",
-      "playerSpecificVerdict": "Ohtani's elite plate discipline and hard-hit ability make him a prime candidate against RHP with a tendency to leave breaking balls in the zone. Favorable park factors further boost his chances.",
+      "player": "Shohei Ohtani (Example Player for Structure)", // AI REPLACES THIS with an actual analyzed player
+      "team": "LAD (Example Team)", // AI REPLACES THIS
+      "position": "DH (Example Position)", // AI REPLACES THIS
+      "playerSpecificVerdict": "Ohtani's elite plate discipline and hard-hit ability make him a prime candidate... (Example text, AI should generate specific verdict for the analyzed player)",
       "corePerformance": {
-        "slashLine2025": ".310/.405/.650",
-        "OPS2025": "1.055",
-        "activeHittingStreak": {"games": "5", "details": "5-game hitting streak (9-for-22, .409 AVG, 2 HR)"},
-        "recentPerformance": {
-          "last7GamesAvg": [0.280, 0.300, 0.320, 0.250, 0.400, 0.350, 0.380],
-          "last15GamesAvg": [0.290, 0.270, 0.310, 0.330, 0.260, 0.300, 0.350, 0.280, 0.320, 0.360, 0.290, 0.310, 0.300, 0.340, 0.370],
-          "last30GamesAvg": [0.300, 0.280, 0.290, 0.310, 0.320, 0.270, 0.300, 0.330, 0.350, 0.290, 0.280, 0.310, 0.340, 0.300, 0.320, 0.330, 0.290, 0.300, 0.310, 0.320, 0.300, 0.290, 0.330, 0.340, 0.310, 0.300, 0.280, 0.320, 0.350, 0.360]
+        "slashLine2025": ".310/.405/.650 (Example Format)", // AI generates actual stat for analyzed player
+        "OPS2025": "1.055 (Example Format)", // AI generates actual stat
+        "activeHittingStreak": {"games": "5 (Example)", "details": "5-game hitting streak (9-for-22, .409 AVG, 2 HR) (Example details)"}, // AI generates actual data
+        "recentPerformance": { // AI generates actual arrays of numbers for analyzed player
+          "last7GamesAvg": [0.280, 0.300, 0.320, 0.250, 0.400, 0.350, 0.380], // Example data points, AI generates real data
+          "last15GamesAvg": [0.290, 0.270, 0.310, 0.330, 0.260, 0.300, 0.350, 0.280, 0.320, 0.360, 0.290, 0.310, 0.300, 0.340, 0.370], // Example data points
+          "last30GamesAvg": [0.300, 0.280, 0.290, 0.310, 0.320, 0.270, 0.300, 0.330, 0.350, 0.290, 0.280, 0.310, 0.340, 0.300, 0.320, 0.330, 0.290, 0.300, 0.310, 0.320, 0.300, 0.290, 0.330, 0.340, 0.310, 0.300, 0.280, 0.320, 0.350, 0.360]  // Example data points
         }
       },
-      "statcastValidation": [
-        {"label": "Hard Hit %", "value": "55.2%", "percentile": 92},
-        {"label": "Barrel %", "value": "18.5%", "percentile": 95},
-        {"label": "Avg Exit Velocity", "value": "94.1 mph", "percentile": 93},
-        {"label": "xwOBA", "value": ".410", "percentile": 94}
+      "statcastValidation": [ // AI generates 4 distinct metrics for the analyzed player
+        {"label": "Hard Hit %", "value": "55.2% (Example Format)", "percentile": 92},
+        {"label": "Barrel %", "value": "18.5% (Example Format)", "percentile": 95},
+        {"label": "Avg Exit Velocity", "value": "94.1 mph (Example Format)", "percentile": 93},
+        {"label": "xwOBA", "value": ".410 (Example Format)", "percentile": 94}
       ],
-      "matchup": {
-        "pitcher": "Logan Webb",
-        "team": "SFG",
-        "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
-        "pitchVulnerabilities": [
-            {"pitchType": "Sinker", "vulnerabilityScore": 0.18},
-            {"pitchType": "Changeup", "vulnerabilityScore": 0.25}
+      "matchup": { // AI generates actual matchup data for the analyzed player
+        "pitcher": "Logan Webb (Example Pitcher)", "team": "SFG (Example Opponent Team)", "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
+        "pitchVulnerabilities": [ // Optional: AI populates if relevant for analyzed pitcher
+            {"pitchType": "Sinker (Example)", "vulnerabilityScore": 0.18},
+            {"pitchType": "Changeup (Example)", "vulnerabilityScore": 0.25}
         ]
       },
-      "synthesis": {
-        "predictiveModels": [
-          {"modelName": "Baseball Musings NN", "probability": "85.0%"},
-          {"modelName": "STREAKSENSE Alpha", "probability": "87.0%"}
+      "synthesis": { // AI generates actual synthesis data for the analyzed player
+        "predictiveModels": [ // AI generates at least 2 distinct models for the analyzed player
+          {"modelName": "Baseball Musings NN (Example Model)", "probability": "85.0%"},
+          {"modelName": "STREAKSENSE Alpha (Example Model)", "probability": "87.0%"}
         ],
-        "BvPHistory": "5-for-12 (.417), 2 HR vs Webb",
-        "parkFactors": {"venue": "Dodger Stadium", "historicalTendency": "Slightly Hitter-Friendly"},
-        "weatherConditions": {"forecast": "Clear, 72°F, Wind 5mph L to R"},
-        "hitterStrengths": {
+        "BvPHistory": "5-for-12 (.417), 2 HR vs Webb (Example, AI generates actual BvP or null/omits if not notable)",
+        "parkFactors": {"venue": "Dodger Stadium (Example Venue)", "historicalTendency": "Slightly Hitter-Friendly (Example Tendency)"},
+        "weatherConditions": {"forecast": "Clear, 72°F, Wind 5mph L to R (Example Forecast)"},
+        "hitterStrengths": { // Optional: AI populates if relevant for analyzed player
             "ContactSkill": 85, "PowerHardHit": 92, "PitchRecognition": 78, "vsRHP": 88, "PlateDiscipline": 80
         },
-        "pitcherProfile": {
+        "pitcherProfile": { // Optional: AI populates if relevant for analyzed pitcher
             "vsFastball": 65, "vsBreaking": 72, "Command": 80, "GroundballRate": 60, "KRate": 75
         }
       },
-      "finalVerdict": {
+      "finalVerdict": { // AI generates actual composite probability for the analyzed player
         "compositeHitProbability": 88.5
       }
     }
-    // Generate 4 more unique player objects following the exact same structure and data requirements.
-    // Ensure data like player name, team, stats, probabilities, BvP, etc., are unique and plausible for each player.
+    // Reminder: Generate 4 MORE unique player objects like the example above,
+    // ensuring all data is specific to YOUR analysis for the requested date and players.
   ],
   "watchListCautionaryNotes": {
     "honorableMentions": [
-      {"player": "Aaron Judge", "team": "NYY", "description": "Consistently high exit velocities, facing a rookie pitcher with high walk rate."},
-      {"player": "Corbin Carroll", "team": "ARI", "description": "Speed threat, good matchup against a contact pitcher, watch for lineup placement."}
+      // Generate 0 to 3 plausible honorable mentions for the given date.
+      // If none, provide an empty array []. Otherwise, each object should follow this structure:
+      {
+        "player": "Example Honorable Mention Player Name", // AI generates actual player
+        "team": "XYZ (Example Team)", // AI generates actual team
+        "description": "Reason for honorable mention (e.g., strong recent performance, favorable matchup)." // AI generates actual description
+      }
+      // ... more honorable mentions if applicable (up to 3 total)
     ],
     "ineligiblePlayersToNote": [
-      {"player": "Mike Trout", "team": "LAA", "reason": "Day-to-day (minor wrist soreness)."},
-      {"player": "Ronald Acuña Jr.", "team": "ATL", "reason": "Scheduled day off after doubleheader."}
+      // Generate 0 to 3 plausible ineligible players for the given date (e.g., due to injury, day off).
+      // If none, provide an empty array []. Otherwise, each object should follow this structure:
+      {
+        "player": "Example Ineligible Player Name", // AI generates actual player
+        "team": "ABC (Example Team)", // AI generates actual team
+        "reason": "Reason for ineligibility (e.g., 'Day-to-day (minor injury)', 'Scheduled day off')." // AI generates actual reason
+      }
+      // ... more ineligible players if applicable (up to 3 total)
     ]
   }
 }
 </SCHEMA>
 
 <TASK>
-Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations.
+Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. Ensure all data is generated based on your expert analysis for the specified date.
 </TASK>`;
 };
 

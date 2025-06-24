@@ -1,7 +1,8 @@
 import React from 'react';
 import type { AnalysisReport, PlayerData, WatchListCautionaryNotesData, HonorableMention } from '../types';
 import { FiChevronRight, FiAlertCircle } from 'react-icons/fi'; 
-import { AudioPlayer } from './AudioPlayer'; // Updated import
+import { AudioPlayer } from './AudioPlayer';
+import { Loader } from './Loader'; // Import the Loader component
 
 
 interface SidebarProps {
@@ -96,8 +97,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
 
       <section>
         <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
-        {isLoading && <p className="text-xs text-[var(--text-secondary)]">Loading recommendations...</p>}
-        {!isLoading && analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
+        {isLoading ? (
+          <Loader message="Loading Picks..." />
+        ) : analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
           <ul className="space-y-1.5" role="listbox" aria-label="Top Player Recommendations">
             {analysisData.recommendations.slice(0, 5).map((player, index) => ( 
               <RecommendationItem
@@ -112,8 +114,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
               />
             ))}
           </ul>
-        ) : !isLoading && (
-          <p className="text-xs text-[var(--text-secondary)]">No recommendations available.</p>
+        ) : (
+          <p className="text-xs text-center py-4 text-[var(--text-secondary)]">No recommendations available.</p>
         )}
       </section>
 
@@ -137,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                     ))}
                 </ul>
             ) : (
-                <p className="text-xs text-[var(--text-secondary)]">No honorable mentions.</p>
+                <p className="text-xs text-[var(--text-secondary)] text-center py-2">No honorable mentions.</p> {/* Added text-center and padding */}
             )}
         </section>
         </>
@@ -145,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
 
       <section>
         <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h2>
-        <AudioPlayer selectedDate={selectedDate} /> {/* Use new AudioPlayer component */}
+        <AudioPlayer selectedDate={selectedDate} />
       </section>
 
       <ImportantNote />

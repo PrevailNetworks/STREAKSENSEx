@@ -72,7 +72,7 @@ You MUST generate a JSON object that strictly adheres to the following structure
       "player": "Shohei Ohtani (Example Player for Structure)", // AI REPLACES THIS with an actual analyzed player
       "team": "LAD (Example Team)", // AI REPLACES THIS
       "position": "DH (Example Position)", // AI REPLACES THIS
-      "playerSpecificVerdict": "Ohtani's elite plate discipline and hard-hit ability make him a prime candidate... (Example text, AI should generate specific verdict for the analyzed player)",
+      "playerSpecificVerdict": "Ohtani's elite plate discipline and hard-hit ability make him a prime candidate against RHP. His recent form suggests a high likelihood of extending his hitting streak, especially considering the favorable park factors and the opposing pitcher's slight vulnerability to left-handed power hitters. (Example text, AI should generate specific verdict for the analyzed player)",
       "corePerformance": {
         "slashLine2025": ".310/.405/.650 (Example Format)", // AI generates actual stat for analyzed player
         "OPS2025": "1.055 (Example Format)", // AI generates actual stat
@@ -91,9 +91,10 @@ You MUST generate a JSON object that strictly adheres to the following structure
       ],
       "matchup": { // AI generates actual matchup data for the analyzed player
         "pitcher": "Logan Webb (Example Pitcher)", "team": "SFG (Example Opponent Team)", "ERA": "3.10", "WHIP": "1.05", "battingAverageAgainst": ".235",
-        "pitchVulnerabilities": [ // Optional: AI populates if relevant for analyzed pitcher
-            {"pitchType": "Sinker (Example)", "vulnerabilityScore": 0.18},
-            {"pitchType": "Changeup (Example)", "vulnerabilityScore": 0.25}
+        "pitchVulnerabilities": [ // Optional: AI populates if relevant for analyzed pitcher, 2-4 items ideally
+            {"pitchType": "Sinker", "vulnerabilityScore": 0.18}, // Score 0.0 to 1.0
+            {"pitchType": "Changeup", "vulnerabilityScore": 0.25},
+            {"pitchType": "Slider", "vulnerabilityScore": 0.12}
         ]
       },
       "synthesis": { // AI generates actual synthesis data for the analyzed player
@@ -104,11 +105,11 @@ You MUST generate a JSON object that strictly adheres to the following structure
         "BvPHistory": "5-for-12 (.417), 2 HR vs Webb (Example, AI generates actual BvP or null/omits if not notable)",
         "parkFactors": {"venue": "Dodger Stadium (Example Venue)", "historicalTendency": "Slightly Hitter-Friendly (Example Tendency)"},
         "weatherConditions": {"forecast": "Clear, 72°F, Wind 5mph L to R (Example Forecast)"},
-        "hitterStrengths": { // Optional: AI populates if relevant for analyzed player
-            "ContactSkill": 85, "PowerHardHit": 92, "PitchRecognition": 78, "vsRHP": 88, "PlateDiscipline": 80
+        "hitterStrengths": { // Optional: AI populates if relevant for analyzed player; keys should be consistent; 5-6 key aspects
+            "ContactSkill": 85, "PowerHardHit": 92, "PitchRecognition": 78, "vsRHP": 88, "PlateDiscipline": 80, "Speed": 70
         },
-        "pitcherProfile": { // Optional: AI populates if relevant for analyzed pitcher
-            "vsFastball": 65, "vsBreaking": 72, "Command": 80, "GroundballRate": 60, "KRate": 75
+        "pitcherProfile": { // Optional: AI populates if relevant for analyzed pitcher; keys should be consistent; 5-6 key aspects
+            "vsFastball": 65, "vsBreaking": 72, "Command": 80, "GroundballRate": 60, "KRate": 75, "vsLHB": 55
         }
       },
       "finalVerdict": { // AI generates actual composite probability for the analyzed player
@@ -125,7 +126,8 @@ You MUST generate a JSON object that strictly adheres to the following structure
       {
         "player": "Example Honorable Mention Player Name", // AI generates actual player
         "team": "XYZ (Example Team)", // AI generates actual team
-        "description": "Reason for honorable mention (e.g., strong recent performance, favorable matchup)." // AI generates actual description
+        "description": "Reason for honorable mention (e.g., strong recent performance, favorable matchup).", // AI generates actual description
+        "compositeHitProbability": 72.3 // Optional: AI provides a hit probability if sensible.
       }
       // ... more honorable mentions if applicable (up to 3 total)
     ],

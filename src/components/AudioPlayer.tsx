@@ -58,8 +58,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
     setCurrentTime(0); // Optionally reset to beginning
   };
 
-  const handleAudioError = (e: Event) => {
-    console.error("Audio Error:", (e.target as HTMLAudioElement).error);
+  const handleAudioError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+    if (audioRef.current && audioRef.current.error) {
+        console.error("Audio Error Code:", audioRef.current.error.code, "Message:", audioRef.current.error.message);
+    } else {
+        console.error("Audio Error event:", e);
+    }
     setError("Daily overview audio not available.");
     setIsLoading(false);
     setDuration(0);
@@ -67,11 +71,19 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
   };
 
   const togglePlayPause = () => {
-    if (!audioRef.current || error) return;
+    if (!audioRef.current || error || isLoading) return;
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play().catch(handleAudioError);
+      audioRef.current.play().catch(e => {
+        // Handle play promise rejection, which can happen for various reasons
+        // including the audio source not being loaded yet or an error occurring.
+        console.error("Error attempting to play audio:", e);
+        // Call handleAudioError to set error state if not already set by an `onerror` event
+        if (!error) {
+           handleAudioError(e as unknown as React.SyntheticEvent<HTMLAudioElement, Event>); // Cast for now, or refine error handling
+        }
+      });
     }
     setIsPlaying(!isPlaying);
   };
@@ -119,12 +131,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
         onEnded={handleAudioEnded}
         onError={handleAudioError}
         preload="metadata" // Important for getting duration without full load
+        src={audioSrc || undefined} // Explicitly set src here
       />
       <div className="flex items-center justify-between">
         <button
           aria-label={isPlaying ? 'Pause' : 'Play'}
           onClick={togglePlayPause}
-          disabled={isLoading || !!error}
+          disabled={isLoading || !!error || duration === 0}
           className="text-[var(--text-primary)] hover:text-[var(--primary-glow)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? <FiLoader className="w-5 h-5 animate-spin" /> : (isPlaying ? <FiPause className="w-5 h-5" /> : <FiPlay className="w-5 h-5" />)}
@@ -138,23 +151,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ selectedDate }) => {
                 onClick={toggleMute}
                 className="text-[var(--text-secondary)] hover:text-[var(--primary-glow)] transition-colors mr-2"
                 onMouseEnter={() => setShowVolumeSlider(true)}
-                onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 200)} // Delay hide
+                onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 300)} // Delay hide
             >
                 {isMuted || volume === 0 ? <FiVolumeX className="w-4 h-4" /> : <FiVolume2 className="w-4 h-4" />}
             </button>
             {showVolumeSlider && (
-                 <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                    className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-20 h-2 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--primary-glow)]"
-                    style={{transform: 'translateY(-50%) translateX(-100%) rotate(0deg)'}} // Adjusted for better positioning
-                    onMouseEnter={() => setShowVolumeSlider(true)} // Keep slider open if mouse re-enters
-                    onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 200)}
-                />
+                 <div 
+                    className="absolute right-0 top-1/2 -translate-y-1/2  transform translate-x-[calc(100%_+_8px)] z-10" // Position to the right of the icon
+                    onMouseEnter={() => setShowVolumeSlider(true)} 
+                    onMouseLeave={() => setTimeout(() => setShowVolumeSlider(false), 300)}
+                 >
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-20 h-2 bg-[var(--border-color)] rounded-lg appearance-none cursor-pointer accent-[var(--primary-glow)]"
+                    />
+                 </div>
             )}
         </div>
       </div>

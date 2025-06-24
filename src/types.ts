@@ -94,6 +94,7 @@ export interface HonorableMention {
   player: string;
   team: string;
   description: string;
+  compositeHitProbability?: number; // Optional probability for watchlist items
 }
 
 export interface IneligiblePlayer {

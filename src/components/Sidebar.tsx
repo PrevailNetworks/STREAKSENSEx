@@ -1,6 +1,8 @@
 import React from 'react';
-import type { AnalysisReport, PlayerData, WatchListCautionaryNotesData } from '../types';
-import { FiChevronRight, FiAlertCircle, FiRadio, FiVolume2, FiMoreHorizontal, FiPlay } from 'react-icons/fi'; // Added FiPlay
+import type { AnalysisReport, PlayerData, WatchListCautionaryNotesData, HonorableMention } from '../types';
+import { FiChevronRight, FiAlertCircle } from 'react-icons/fi'; 
+import { AudioPlayer } from './AudioPlayer'; // Updated import
+
 
 interface SidebarProps {
   selectedDate: Date;
@@ -11,22 +13,6 @@ interface SidebarProps {
   isLoading: boolean;
 }
 
-const AudioPlayerPlaceholder: React.FC = () => (
-  <div className="bg-[var(--card-bg)] p-3 rounded-lg border border-[var(--border-color)]">
-    <div className="flex items-center justify-between">
-      <FiPlay className="w-6 h-6 text-[var(--text-primary)] cursor-pointer hover:text-[var(--primary-glow)]" />
-      <div className="text-xs text-[var(--text-secondary)]">0:00 / 6:51</div>
-      <div className="flex items-center space-x-2">
-        <FiVolume2 className="w-4 h-4 text-[var(--text-secondary)] cursor-pointer hover:text-[var(--primary-glow)]" />
-        <FiMoreHorizontal className="w-4 h-4 text-[var(--text-secondary)] cursor-pointer hover:text-[var(--primary-glow)]" />
-      </div>
-    </div>
-    <div className="w-full bg-[var(--border-color)] h-1.5 rounded-full mt-2 overflow-hidden">
-      <div className="bg-[var(--primary-glow)] h-full w-1/4"></div>
-    </div>
-  </div>
-);
-
 const ImportantNote: React.FC = () => (
   <div className="bg-blue-900/30 text-blue-300 p-3 rounded-md border border-blue-700 text-xs">
     <p className="flex items-start">
@@ -36,34 +22,44 @@ const ImportantNote: React.FC = () => (
   </div>
 );
 
-const RecommendationItem: React.FC<{ player: PlayerData; onSelect: () => void; isSelected: boolean; index: number }> = ({ player, onSelect, isSelected, index }) => (
+interface RecommendationItemProps {
+  playerName: string;
+  probability: number | undefined; 
+  onSelect: () => void;
+  isSelected: boolean;
+  isSelectable: boolean; 
+  index: number;
+  team?: string; 
+}
+
+const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, probability, onSelect, isSelected, isSelectable, index, team }) => (
   <li
-    className={`flex justify-between items-center p-2.5 rounded-md cursor-pointer transition-colors duration-150 ease-in-out
-                ${isSelected ? 'bg-[var(--selected-item-bg)] shadow-md' : 'hover:bg-[var(--main-bg)]'}
+    className={`flex justify-between items-center p-2.5 rounded-md transition-colors duration-150 ease-in-out
+                ${isSelected && isSelectable ? 'bg-[var(--selected-item-bg)] shadow-md' : 'hover:bg-[var(--main-bg)]'}
+                ${isSelectable ? 'cursor-pointer' : 'cursor-default'}
               `}
-    onClick={onSelect}
+    onClick={isSelectable ? onSelect : undefined}
+    aria-selected={isSelected && isSelectable}
+    role={isSelectable ? "option" : undefined}
+    tabIndex={isSelectable ? 0 : -1}
+    onKeyDown={isSelectable ? (e) => (e.key === 'Enter' || e.key === ' ') && onSelect() : undefined}
   >
     <div className="flex items-center">
-      <span className={`mr-3 text-sm font-medium ${isSelected ? 'text-[var(--primary-glow)]' : 'text-[var(--text-secondary)]'}`}>{index + 1}</span>
-      <span className={`text-sm ${isSelected ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-secondary)]'}`}>{player.player}</span>
+      <span className={`mr-3 text-sm font-medium ${isSelected && isSelectable ? 'text-[var(--primary-glow)]' : 'text-[var(--text-secondary)]'}`}>{index + 1}</span>
+      <div>
+        <span className={`text-sm ${isSelected && isSelectable ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-secondary)]'}`}>{playerName}</span>
+        {team && <span className="block text-xs text-[var(--text-secondary)]">{team}</span>}
+      </div>
     </div>
     <div className="flex items-center">
-      <span className={`text-sm font-semibold mr-2 ${isSelected ? 'text-[var(--primary-glow)]' : 'text-[var(--accent-positive)]'}`}>
-        {player.finalVerdict.compositeHitProbability}%
-      </span>
-      {isSelected && <FiChevronRight className="w-4 h-4 text-[var(--primary-glow)]" />}
+      {probability !== undefined && (
+         <span className={`text-sm font-semibold mr-2 ${isSelected && isSelectable ? 'text-[var(--primary-glow)]' : (probability > 0 ? 'text-[var(--accent-positive)]' : 'text-[var(--text-secondary)]')}`}>
+            {probability.toFixed(1)}%
+        </span>
+      )}
+      {isSelected && isSelectable && <FiChevronRight className="w-4 h-4 text-[var(--primary-glow)]" />}
     </div>
   </li>
-);
-
-const WatchListItemDisplay: React.FC<{ item: { player: string; description?: string; reason?: string }; type: 'mention' | 'ineligible' }> = ({ item, type }) => (
-     <li className="flex items-start text-xs mb-1">
-        <span className={`mr-2 text-sm ${type === 'mention' ? 'text-[var(--accent-positive)]' : 'text-[var(--accent-negative)]'}`}>•</span>
-        <div>
-            <span className="font-semibold text-[var(--text-primary)]">{item.player}: </span>
-            <span className="text-[var(--text-secondary)]">{item.description || item.reason}</span>
-        </div>
-    </li>
 );
 
 
@@ -102,13 +98,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
         <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
         {isLoading && <p className="text-xs text-[var(--text-secondary)]">Loading recommendations...</p>}
         {!isLoading && analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
-          <ul className="space-y-1.5">
-            {analysisData.recommendations.slice(0, 5).map((player, index) => ( // Show top 5
+          <ul className="space-y-1.5" role="listbox" aria-label="Top Player Recommendations">
+            {analysisData.recommendations.slice(0, 5).map((player, index) => ( 
               <RecommendationItem
                 key={player.player}
-                player={player}
+                playerName={player.player}
+                team={player.team}
+                probability={player.finalVerdict.compositeHitProbability}
                 onSelect={() => onPlayerSelect(player)}
                 isSelected={player.player === selectedPlayerId}
+                isSelectable={true}
                 index={index}
               />
             ))}
@@ -124,13 +123,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
             <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Watch List</h2>
              {analysisData.watchListCautionaryNotes.honorableMentions.length > 0 ? (
                 <ul className="space-y-1">
-                    {analysisData.watchListCautionaryNotes.honorableMentions.slice(0,3).map((item, idx) => ( // Show top 3
+                    {analysisData.watchListCautionaryNotes.honorableMentions.slice(0,3).map((item: HonorableMention, idx) => ( 
                          <RecommendationItem
                             key={item.player + idx}
-                            player={{ player: item.player, team:item.team, position: '', finalVerdict: {compositeHitProbability: 0}, corePerformance: {} as any, statcastValidation: [], matchup: {} as any, synthesis: {} as any}} // Partial mock for display
-                            onSelect={() => { /* Placeholder: No direct selection to main view for watchlist items yet */ }}
-                            isSelected={false} // Watchlist items are not "selected" in the main view
-                            index={idx + (analysisData.recommendations?.length || 0)} // Continue numbering
+                            playerName={item.player}
+                            team={item.team}
+                            probability={item.compositeHitProbability} 
+                            onSelect={() => { /* Watchlist items are not selectable for main display */ }}
+                            isSelected={false} 
+                            isSelectable={false} 
+                            index={idx + (analysisData.recommendations?.length || 0)} 
                         />
                     ))}
                 </ul>
@@ -143,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
 
       <section>
         <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h2>
-        <AudioPlayerPlaceholder />
+        <AudioPlayer selectedDate={selectedDate} /> {/* Use new AudioPlayer component */}
       </section>
 
       <ImportantNote />

@@ -1,11 +1,12 @@
+
 import React, { useState } from 'react';
 import type { PlayerData, StatcastMetric } from '../types';
-import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend } from 'recharts';
-import { FiInfo, FiMapPin, FiSun, FiWind, FiUsers } from 'react-icons/fi';
+import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Cell } from 'recharts';
+import { FiInfo, FiMapPin, FiSun, FiWind, FiUsers, FiTrendingUp, FiBarChart2 } from 'react-icons/fi';
 
 interface MainDisplayProps {
   player: PlayerData;
-  reportDate: string; // To show in one of the cards or headers if needed
+  reportDate: string; 
 }
 
 type TabKey = "verdict" | "fullAnalysis" | "statcastDeepDive";
@@ -29,37 +30,134 @@ const ContextualFactorItem: React.FC<{ icon: React.ReactNode; label: string; val
     </div>
 );
 
+const StatcastListItem: React.FC<{ metric: StatcastMetric }> = ({ metric }) => (
+    <li className="py-2">
+        <div className="flex justify-between items-center mb-1 text-sm">
+            <span className="text-[var(--text-primary)] font-medium">{metric.label}: <span className="font-bold">{metric.value}</span></span>
+            <span className="text-[var(--text-secondary)]">{metric.percentile}th Pctl</span>
+        </div>
+        <div className="w-full bg-[rgba(132,204,22,0.1)] rounded h-2.5">
+            <div
+                className="bg-[var(--accent-positive)] h-2.5 rounded"
+                style={{ width: `${metric.percentile}%` }}
+                aria-valuenow={metric.percentile}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                role="progressbar"
+                aria-label={`${metric.label} percentile`}
+            ></div>
+        </div>
+    </li>
+);
 
-// Mock data for radar chart and pitcher arsenal until Gemini prompt is updated
-const mockRadarData = [
-  { subject: 'Contact/Skill', A: 85, B: 70, fullMark: 100 },
-  { subject: 'Power/Hard Hit', A: 75, B: 80, fullMark: 100 },
-  { subject: 'Pitch Command/Avoid K', A: 60, B: 75, fullMark: 100 },
-  { subject: 'vs. LHP/RHP Split', A: 90, B: 65, fullMark: 100 },
-  { subject: 'Plate Discipline', A: 70, B: 85, fullMark: 100 },
+
+const RADAR_CHART_KEYS = [
+    { key: "ContactSkill", label: "Contact" },
+    { key: "PowerHardHit", label: "Power" },
+    { key: "PitchRecognition", label: "Pitch Rec." },
+    { key: "PlateDiscipline", label: "Discipline" },
+    { key: "vsRHP", label: "vs RHP" }, // Example, could be dynamic
+    { key: "vsLHP", label: "vs LHP" }  // Example, could be dynamic
 ];
 
-const mockPitcherArsenalData = [
-  { name: 'vs Fastball', vulnerability: 0.15, color: '#a3e635' }, // Brighter Lime
-  { name: 'vs Curveball', vulnerability: 0.22, color: '#84cc16' }, // Primary Glow
-  { name: 'vs Slider', vulnerability: 0.10, color: '#6ca112' },   // Darker Lime
+const PITCHER_ARSENAL_COLORS = [
+  '#a3e635', // Brighter Lime
+  '#84cc16', // Primary Glow
+  '#6ca112', // Darker Lime
+  '#4d7c0f', // Even Darker
 ];
 
 
 export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) => {
   const [activeTab, setActiveTab] = useState<TabKey>("verdict");
-  const { corePerformance, statcastValidation, matchup, synthesis, finalVerdict } = player;
+  const { corePerformance, statcastValidation, matchup, synthesis, finalVerdict, playerSpecificVerdict } = player;
 
   const probabilityGaugeData = [{ name: 'Probability', value: finalVerdict.compositeHitProbability }];
   
+  const radarData = RADAR_CHART_KEYS.map(item => {
+    const hitterValue = synthesis.hitterStrengths ? (synthesis.hitterStrengths[item.key] ?? 0) : 0;
+    // For pitcher, we might need a mapping if keys differ, or use specific pitcher profile keys
+    // For simplicity, let's assume pitcherProfile might have corresponding weaknesses or general ratings
+    const pitcherValue = synthesis.pitcherProfile ? (synthesis.pitcherProfile[`vs${item.label.replace(/\s+/g, '')}`] ?? synthesis.pitcherProfile[item.key] ?? 0) : 0;
+    
+    // Explicitly define the structure for type clarity
+    const dataPoint: { subject: string; fullMark: number; [key: string]: string | number } = {
+      subject: item.label,
+      fullMark: 100
+    };
+    dataPoint[player.player] = hitterValue;
+    dataPoint[matchup.pitcher] = pitcherValue;
+    return dataPoint;
+
+  }).filter(d => {
+      // Assert that these dynamically accessed properties are numbers for the comparison
+      const playerValue = d[player.player] as number;
+      const pitcherValue = d[matchup.pitcher] as number;
+      return playerValue > 0 || pitcherValue > 0;
+  });
+
+  const pitcherArsenalData = matchup.pitchVulnerabilities?.map((pitch, index) => ({
+      name: pitch.pitchType,
+      vulnerability: pitch.vulnerabilityScore * 100, // Assuming score is 0-1, convert to 0-100 for chart display
+      color: PITCHER_ARSENAL_COLORS[index % PITCHER_ARSENAL_COLORS.length]
+  })) || [];
+
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "verdict":
-        return <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{synthesis.BvPHistory || "Detailed player verdict and situational analysis will appear here. This player has shown consistent performance against similar pitcher archetypes."}</p>;
+        return (
+            <div>
+                <SectionTitle title="Analyst Verdict" icon={<FiInfo />} />
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+                    {playerSpecificVerdict || synthesis.BvPHistory || "No specific verdict available. Review full analysis for details."}
+                </p>
+                {/* Optionally add BvP if not in verdict */}
+                {!playerSpecificVerdict && synthesis.BvPHistory && (
+                    <>
+                        <h4 className="text-md font-semibold text-[var(--text-primary)] mt-4 mb-2">Batter vs. Pitcher History</h4>
+                        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{synthesis.BvPHistory}</p>
+                    </>
+                )}
+            </div>
+        );
       case "fullAnalysis":
-        return <p className="text-sm text-[var(--text-secondary)]">Full analysis content will go here.</p>;
+        return (
+          <div>
+            <SectionTitle title="Comprehensive Player Analysis" icon={<FiTrendingUp />} />
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-md font-semibold text-[var(--text-primary)] mb-1">Core Performance Metrics:</h4>
+                <p className="text-sm text-[var(--text-secondary)]">Slash Line (2025): {corePerformance.slashLine2025}</p>
+                <p className="text-sm text-[var(--text-secondary)]">OPS (2025): {corePerformance.OPS2025}</p>
+                <p className="text-sm text-[var(--text-secondary)]">Active Hitting Streak: {corePerformance.activeHittingStreak.games} games {corePerformance.activeHittingStreak.details && `(${corePerformance.activeHittingStreak.details})`}</p>
+              </div>
+              {synthesis.predictiveModels && synthesis.predictiveModels.length > 0 && (
+                <div>
+                    <h4 className="text-md font-semibold text-[var(--text-primary)] mb-1">Predictive Model Insights:</h4>
+                    <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] pl-4">
+                    {synthesis.predictiveModels.map(m => <li key={m.modelName}>{m.modelName}: {m.probability}</li>)}
+                    </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
       case "statcastDeepDive":
-        return <p className="text-sm text-[var(--text-secondary)]">Statcast deep dive content will go here.</p>;
+        return (
+            <div>
+                <SectionTitle title="Statcast™ Deep Dive" icon={<FiBarChart2 />} />
+                {statcastValidation && statcastValidation.length > 0 ? (
+                    <ul className="space-y-1">
+                        {statcastValidation.map((metric, index) => (
+                            <StatcastListItem key={index} metric={metric} />
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-sm text-[var(--text-secondary)]">No detailed Statcast metrics available for this player.</p>
+                )}
+            </div>
+        );
       default:
         return null;
     }
@@ -72,20 +170,21 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
           <h1 className="text-3xl lg:text-4xl font-bold font-[var(--font-display)] text-[var(--text-primary)]">{player.player}</h1>
           <p className="text-md text-[var(--text-secondary)]">{player.position}, {player.team}</p>
         </div>
-        <div className="mt-3 sm:mt-0">
+        {/* TODO: The tag below needs to be dynamic based on AI analysis if possible, or removed if too static */}
+        {/* <div className="mt-3 sm:mt-0">
           <span className="bg-[var(--accent-positive)] text-xs text-green-900 font-semibold px-3 py-1.5 rounded-full">
-            Generational Contact vs. Young LHP
+            Generational Contact vs. Young LHP 
           </span>
-        </div>
+        </div> */}
       </header>
 
       <div className="border-b border-[var(--border-color)]">
-        <nav className="flex space-x-4 -mb-px" aria-label="Tabs">
+        <nav className="flex space-x-1 sm:space-x-4 -mb-px" aria-label="Tabs">
           {(["verdict", "fullAnalysis", "statcastDeepDive"] as TabKey[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
+              className={`whitespace-nowrap py-3 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm transition-colors
                 ${activeTab === tab 
                   ? 'border-[var(--tab-active-border)] text-[var(--primary-glow)]' 
                   : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)]'}`}
@@ -96,7 +195,7 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
         </nav>
       </div>
 
-      <div className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-lg border border-[var(--border-color)]">
+      <div className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-lg border border-[var(--border-color)] min-h-[100px]">
         {renderTabContent()}
       </div>
       
@@ -123,39 +222,45 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-2 text-center">Hitter vs. Pitcher Strengths</h4>
-              <div className="w-full h-56 sm:h-64">
-                <ResponsiveContainer>
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={mockRadarData}>
-                    <PolarGrid stroke="var(--border-color)" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
-                    <Radar name={player.player} dataKey="A" stroke="var(--primary-glow)" fill="var(--primary-glow)" fillOpacity={0.5} />
-                    <Radar name={matchup.pitcher} dataKey="B" stroke="#ff4d4d" fill="#ff4d4d" fillOpacity={0.4} />
-                    <Legend wrapperStyle={{fontSize: "10px", paddingTop: "10px"}}/>
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
+              {radarData && radarData.length > 0 ? (
+                <div className="w-full h-56 sm:h-64">
+                  <ResponsiveContainer>
+                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                      <PolarGrid stroke="var(--border-color)" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
+                      <Radar name={player.player} dataKey={player.player} stroke="var(--primary-glow)" fill="var(--primary-glow)" fillOpacity={0.6} />
+                      <Radar name={matchup.pitcher} dataKey={matchup.pitcher} stroke="#ff4d4d" fill="#ff4d4d" fillOpacity={0.5} />
+                      <Legend wrapperStyle={{fontSize: "10px", paddingTop: "10px"}}/>
+                       <RechartsTooltip contentStyle={{backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '12px'}}/>
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <p className="text-xs text-center text-[var(--text-secondary)] h-56 sm:h-64 flex items-center justify-center">Hitter/Pitcher strength data not available.</p>}
             </div>
             <div>
               <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-2 text-center">Pitcher Arsenal Vulnerability</h4>
-               <div className="w-full h-56 sm:h-64 pt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockPitcherArsenalData} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
-                        <XAxis type="number" domain={[0, 0.3]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} stroke="var(--border-color)"/>
-                        <YAxis type="category" dataKey="name" width={70} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} stroke="var(--border-color)"/>
-                        <RechartsTooltip 
-                            cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                            contentStyle={{backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '12px'}}
-                            itemStyle={{color: 'var(--text-primary)'}}
-                         />
-                        <Bar dataKey="vulnerability" barSize={15} radius={[0, 5, 5, 0]}>
-                            {mockPitcherArsenalData.map((entry, index) => (
-                                <rect key={`bar-${index}`} fill={entry.color} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {pitcherArsenalData && pitcherArsenalData.length > 0 ? (
+                <div className="w-full h-56 sm:h-64 pt-4">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={pitcherArsenalData} layout="vertical" margin={{ top: 0, right: 15, left: 10, bottom: 0 }}>
+                          <XAxis type="number" domain={[0, 'dataMax + 5']} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} stroke="var(--border-color)" tickFormatter={(value) => `${value}%`}/>
+                          <YAxis type="category" dataKey="name" width={70} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} stroke="var(--border-color)"/>
+                          <RechartsTooltip 
+                              cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                              contentStyle={{backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '12px'}}
+                              itemStyle={{color: 'var(--text-primary)'}}
+                              formatter={(value:number) => `${value.toFixed(1)}%`}
+                          />
+                          <Bar dataKey="vulnerability" barSize={15} radius={[0, 5, 5, 0]}>
+                              {pitcherArsenalData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                          </Bar>
+                      </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <p className="text-xs text-center text-[var(--text-secondary)] h-56 sm:h-64 flex items-center justify-center">Pitcher arsenal data not available.</p>}
             </div>
           </div>
             <div className="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
@@ -168,8 +273,8 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
                     <span className="block text-[var(--text-primary)] font-semibold text-sm">{matchup.WHIP}</span>
                 </div>
                 <div className="bg-[var(--main-bg)] p-2 rounded">
-                    <span className="block text-[var(--text-secondary)]">xERA (Est.)</span>
-                    <span className="block text-[var(--text-primary)] font-semibold text-sm">{(parseFloat(matchup.ERA) * 0.95).toFixed(2)}</span> {/* Mock xERA */}
+                    <span className="block text-[var(--text-secondary)]">BAA</span>
+                    <span className="block text-[var(--text-primary)] font-semibold text-sm">{matchup.battingAverageAgainst}</span>
                 </div>
             </div>
         </div>
@@ -183,11 +288,14 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
                 <ContextualFactorItem icon={<FiMapPin size={18}/>} label="Venue" value={synthesis.parkFactors.venue} details={synthesis.parkFactors.historicalTendency}/>
             }
             {synthesis.weatherConditions && 
-                <ContextualFactorItem icon={<FiSun size={18}/>} label="Weather" value={synthesis.weatherConditions.forecast.split(',')[0]} details={synthesis.weatherConditions.forecast.substring(synthesis.weatherConditions.forecast.indexOf(',') + 1).trim()}/>
+                <ContextualFactorItem 
+                    icon={synthesis.weatherConditions.forecast.toLowerCase().includes("wind") ? <FiWind size={18}/> : <FiSun size={18}/>} 
+                    label="Weather" 
+                    value={synthesis.weatherConditions.forecast.split(',')[0]} 
+                    details={synthesis.weatherConditions.forecast.substring(synthesis.weatherConditions.forecast.indexOf(',') + 1).trim()}/>
             }
-            {/* Lineup position - not directly in data, mock or adapt if possible */}
-            <ContextualFactorItem icon={<FiUsers size={18}/>} label="Lineup Position" value="Leadoff (Est.)" details="Maximizes plate appearances."/>
-            {/* You might add BvP History here as well if it fits thematically */}
+            {/* TODO: Lineup position could be dynamic if AI provides it */}
+            <ContextualFactorItem icon={<FiUsers size={18}/>} label="Lineup Position (Est.)" value="Top 3 (Projected)" details="Maximizes plate appearances."/>
             {synthesis.BvPHistory && 
                  <ContextualFactorItem icon={<FiInfo size={18}/>} label="Batter vs Pitcher" value={synthesis.BvPHistory} />
             }

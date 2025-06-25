@@ -58,17 +58,20 @@ const App: React.FC = () => {
   // Initialize Audio Element
   useEffect(() => {
     if (typeof Audio !== 'undefined' && !audioRef.current) {
-      (audioRef as React.MutableRefObject<HTMLAudioElement | null>).current = new Audio();
+      const audioElement = new Audio();
+      audioRef.current = audioElement; // Assign to the ref
       
-      audioRef.current.onloadedmetadata = () => {
+      // Attach event listeners to the audioElement instance
+      audioElement.onloadedmetadata = () => {
         setIsAudioLoading(false);
         setAudioError(null);
       };
-      audioRef.current.onended = () => setIsAudioPlaying(false);
-      audioRef.current.onerror = (e) => {
+      audioElement.onended = () => setIsAudioPlaying(false);
+      audioElement.onerror = (e: Event) => { // Type the event parameter
         let message = "Audio error.";
-        if (audioRef.current?.error) {
-            switch(audioRef.current.error.code) {
+        // Use audioElement here for type safety if needed, or audioRef.current if checked
+        if (audioElement.error) {
+            switch(audioElement.error.code) {
                 case MediaError.MEDIA_ERR_ABORTED: message = "Playback aborted."; break;
                 case MediaError.MEDIA_ERR_NETWORK: message = "Network error."; break;
                 case MediaError.MEDIA_ERR_DECODE: message = "Decode error."; break;
@@ -194,7 +197,6 @@ const App: React.FC = () => {
 
     try {
       const firestoreResult: FirestoreReportWithTimestamp | null = await getAnalysisReportFromFirestore(dateKey);
-      let currentSelectedPlayerStillValid = false;
       
       if (firestoreResult) {
         // ... (stale check logic remains the same)
@@ -213,7 +215,6 @@ const App: React.FC = () => {
             // Check if existing selectedPlayer (passed as currentPlayerData) is in the new report
             if (currentPlayerData && firestoreResult.report.recommendations.some(p => p.player === currentPlayerData.player && p.team === currentPlayerData.team)) {
                 setSelectedPlayer(currentPlayerData);
-                currentSelectedPlayerStillValid = true;
             } else {
                 setSelectedPlayer(firestoreResult.report.recommendations[0]);
             }
@@ -231,7 +232,6 @@ const App: React.FC = () => {
         if (geminiData.recommendations && geminiData.recommendations.length > 0) {
            if (currentPlayerData && geminiData.recommendations.some(p => p.player === currentPlayerData.player && p.team === currentPlayerData.team)) {
                 setSelectedPlayer(currentPlayerData);
-                currentSelectedPlayerStillValid = true;
             } else {
                 setSelectedPlayer(geminiData.recommendations[0]);
             }
@@ -251,13 +251,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Removed selectedPlayer from deps
+  }, []); 
 
   useEffect(() => {
     if (currentView === 'analytics' && !authLoading) {
       loadData(selectedDate, selectedPlayer);
     }
-  }, [selectedDate, currentView, authLoading, loadData]); // selectedPlayer removed from here too
+  }, [selectedDate, currentView, authLoading, loadData, selectedPlayer]);
 
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
@@ -456,6 +456,7 @@ const App: React.FC = () => {
         isAudioLoading={isAudioLoading}
         audioError={audioError}
         onToggleAudio={toggleAudioPlayPause}
+        hideMenuButton={currentView === 'dashboard'}
       />
 
       <FlyoutMenu
@@ -477,37 +478,41 @@ const App: React.FC = () => {
       />
 
       <div className="flex flex-row flex-1 overflow-hidden">
-        <Sidebar
-          selectedDate={selectedDate}
-          onDateChange={handleDateChange}
-          analysisData={analysisData}
-          onPlayerSelect={handlePlayerSelect}
-          selectedPlayerId={selectedPlayer?.player}
-          isLoading={isLoading}
-          maxDate={maxDate}
-          className="hidden md:flex md:flex-col"
-          onLogoClick={currentUser ? () => setCurrentView('dashboard') : () => setCurrentView('landing')}
-          onOpenAuthModal={() => openAuthModal(currentView)}
-          currentUser={currentUser}
-          favoritePlayersMap={favoritePlayersMap}
-          onSetPick={handleSetPick}
-          onToggleFavorite={handleToggleFavorite}
-        />
-
-        <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area">
-          <MobilePlayerPicker
+        {currentView !== 'dashboard' && (
+          <Sidebar
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
             analysisData={analysisData}
             onPlayerSelect={handlePlayerSelect}
             selectedPlayerId={selectedPlayer?.player}
             isLoading={isLoading}
-            className="md:hidden sticky top-0 z-20 bg-[var(--main-bg)] shadow-sm"
+            maxDate={maxDate}
+            className="hidden md:flex md:flex-col"
+            onLogoClick={currentUser ? () => setCurrentView('dashboard') : () => setCurrentView('landing')}
+            onOpenAuthModal={() => openAuthModal(currentView)}
             currentUser={currentUser}
             favoritePlayersMap={favoritePlayersMap}
             onSetPick={handleSetPick}
             onToggleFavorite={handleToggleFavorite}
-            onOpenAuthModal={() => openAuthModal(currentView)}
-            selectedDate={selectedDate}
           />
+        )}
+
+        <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area">
+          {currentView !== 'dashboard' && (
+            <MobilePlayerPicker
+              analysisData={analysisData}
+              onPlayerSelect={handlePlayerSelect}
+              selectedPlayerId={selectedPlayer?.player}
+              isLoading={isLoading}
+              className="md:hidden sticky top-0 z-20 bg-[var(--main-bg)] shadow-sm"
+              currentUser={currentUser}
+              favoritePlayersMap={favoritePlayersMap}
+              onSetPick={handleSetPick}
+              onToggleFavorite={handleToggleFavorite}
+              onOpenAuthModal={() => openAuthModal(currentView)}
+              selectedDate={selectedDate}
+            />
+          )}
 
           <main className={`flex-grow bg-[var(--main-bg)] p-4 sm:p-6 lg:p-8 flex flex-col
                            ${selectedPlayer && analysisData && currentView === 'analytics' ? 'pt-2 md:pt-4' : 'pt-4'}`}>

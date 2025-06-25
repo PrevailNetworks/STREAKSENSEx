@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import type { AnalysisReport, PlayerData } from '../types';
-import { RecommendationItem } from './Sidebar'; 
+import { RecommendationItem } from './AnalyticsContextualPanel'; // Updated import if Sidebar was renamed
 import { FiChevronDown, FiChevronUp, FiList } from 'react-icons/fi';
 import { Loader } from './Loader';
 import type { User as FirebaseUser } from 'firebase/auth';
@@ -12,7 +12,6 @@ interface MobilePlayerPickerProps {
   selectedPlayerId?: string;
   isLoading: boolean;
   className?: string;
-  // Props for quick actions
   currentUser: FirebaseUser | null;
   selectedDate: Date;
   favoritePlayersMap: Record<string, boolean>;
@@ -103,13 +102,13 @@ export const MobilePlayerPicker: React.FC<MobilePlayerPickerProps> = ({
 
       {isExpanded && (
         <div id="mobile-player-list" className="absolute top-full left-0 right-0 bg-[var(--main-bg)] shadow-lg border-b border-x border-[var(--border-color)] rounded-b-md z-20 max-h-60 overflow-y-auto">
-          {isLoading ? ( // This isLoading is for the main data, not specific to picker expansion
+          {isLoading ? ( 
             <div className="p-4"><Loader message="Refreshing picks..." /></div>
           ) : analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
             <ul className="p-2 space-y-1">
               {analysisData.recommendations.slice(0, 5).map((p, index) => (
                 <RecommendationItem
-                  key={`mp-rec-${p.player}-${index}`}
+                  key={`mp-rec-${p.player}-${index}`} // Using key directly
                   player={relevantPlayerData(p)}
                   onSelect={() => handlePlayerSelectionInPicker(p)}
                   isSelected={p.player === selectedPlayerId}

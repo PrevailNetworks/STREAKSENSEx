@@ -13,7 +13,7 @@ export interface RecommendationItemProps {
   isSelected: boolean;
   isSelectable: boolean;
   index?: number;
-  itemKey?: string;
+  // itemKey?: string; // Replaced by standard React key prop
   currentUser: FirebaseUser | null;
   selectedDate: Date;
   favoritePlayersMap: Record<string, boolean>;
@@ -25,7 +25,7 @@ export interface RecommendationItemProps {
 
 // RecommendationItem component (could be moved to its own file if extensively used elsewhere)
 export const RecommendationItem: React.FC<RecommendationItemProps> = ({ 
-  player, onSelect, isSelected, isSelectable, index, itemKey,
+  player, onSelect, isSelected, isSelectable, index, /* itemKey, */
   currentUser, favoritePlayersMap, onSetPick, onToggleFavorite, onOpenAuthModal, isCompact
 }) => {
   const [actionLoading, setActionLoading] = useState<'pick' | 'favorite' | null>(null);
@@ -52,7 +52,7 @@ export const RecommendationItem: React.FC<RecommendationItemProps> = ({
 
   return (
   <li
-    key={itemKey || `rec-${player.player}-${index}`} // Ensure key is always present
+    // key={itemKey || `rec-${player.player}-${index}`} // Ensure key is always present
     className={`group flex justify-between items-center p-2.5 rounded-md transition-colors duration-150 ease-in-out
                 ${isSelected && isSelectable ? 'bg-[var(--selected-item-bg)] shadow-md' : 'hover:bg-[var(--main-bg)]'}
                 ${isSelectable ? 'cursor-pointer' : 'cursor-default'}
@@ -117,12 +117,12 @@ interface AnalyticsContextualPanelProps {
   selectedPlayerId?: string;
   isLoading: boolean;
   maxDate: string;
-  className?: string; // Still useful for md:flex md:flex-col from App.tsx
+  className?: string; 
   currentUser: FirebaseUser | null;
   favoritePlayersMap: Record<string, boolean>;
   onSetPick: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
   onToggleFavorite: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
-  onOpenAuthModal: () => void; // For login prompts on quick actions
+  onOpenAuthModal: () => void; 
 }
 
 const ImportantNote: React.FC = () => (
@@ -179,7 +179,6 @@ export const AnalyticsContextualPanel: React.FC<AnalyticsContextualPanelProps> =
 
   return (
     <aside className={`w-full md:w-72 lg:w-80 bg-[var(--sidebar-bg)] p-4 sm:p-5 text-[var(--text-primary)] border-r border-[var(--border-color)] flex flex-col h-full ${className}`}>
-        {/* Header section with Date Picker */}
         <div className="flex-shrink-0 mb-6">
             <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Analytics Date</h2>
             <div className="relative flex items-center group bg-[var(--main-bg)] p-2.5 rounded-md border border-[var(--border-color)]">
@@ -197,7 +196,7 @@ export const AnalyticsContextualPanel: React.FC<AnalyticsContextualPanelProps> =
             </div>
         </div>
 
-        <div className="flex-grow overflow-y-auto space-y-5 pr-1 pb-4">
+        <div className="flex-grow overflow-y-auto space-y-5 pr-1 pb-4 custom-scrollbar">
             <section>
               <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
               {isLoading ? (
@@ -236,7 +235,7 @@ export const AnalyticsContextualPanel: React.FC<AnalyticsContextualPanelProps> =
                                   key={`analytics-watch-${item.player}-${idx}`}
                                   player={relevantHonorableData(item)}
                                   isSelected={false}
-                                  isSelectable={false} // Watchlist items not directly selectable for MainDisplay
+                                  isSelectable={false} 
                                   currentUser={currentUser}
                                   selectedDate={selectedDate}
                                   favoritePlayersMap={favoritePlayersMap}
@@ -254,12 +253,11 @@ export const AnalyticsContextualPanel: React.FC<AnalyticsContextualPanelProps> =
 
             <section>
               <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h2>
-              <AudioPlayer selectedDate={selectedDate} /> {/* Desktop sidebar AudioPlayer */}
+              <AudioPlayer selectedDate={selectedDate} /> 
             </section>
 
             <ImportantNote />
         </div>
-        {/* Auth section removed, handled by PrimaryNavigation */}
     </aside>
   );
 };

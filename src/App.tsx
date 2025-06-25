@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Sidebar, RecommendationItemProps } from '@/components/Sidebar'; // Assuming RecommendationItemProps is exported if needed
+import { AnalyticsContextualPanel } from '@/components/AnalyticsContextualPanel';
 import { MainDisplay } from '@/components/MainDisplay';
 import { Loader } from '@/components/Loader';
 import { fetchAnalysisForDate, fetchStructuredReportForPlayer } from './services/geminiService';
 import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore, FirestoreReportWithTimestamp, getAdditionalPlayerReport, saveAdditionalPlayerReport } from './services/firestoreService';
-import { saveUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, isPlayerFavorite, getUserFavoritePlayers, FavoritePlayer } from './services/userService';
+import { saveUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, getUserFavoritePlayers, FavoritePlayer } from './services/userService';
 import type { AnalysisReport, PlayerData } from './types';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useAuth, EMAIL_FOR_SIGN_IN_LINK_KEY } from './contexts/AuthContext';
@@ -16,13 +16,14 @@ import { LandingPage } from './components/LandingPage';
 import { DashboardPage } from './components/DashboardPage';
 import { AuthModal } from './components/AuthModal';
 import { PlayerResearchChat } from './components/PlayerResearchChat';
+import { PrimaryNavigation } from './components/PrimaryNavigation'; // New
 import { formatDateForDisplay, formatDateForKey, formatDateToMMDDYY } from './utils/dateUtils';
 
 
 const STALE_THRESHOLD_HOURS = 4;
 const REFRESH_CUTOFF_UTC_HOUR = 23;
 
-type AppView = 'landing' | 'dashboard' | 'analytics';
+export type AppView = 'landing' | 'dashboard' | 'analytics'; // Export for PrimaryNavigation
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>('landing');
@@ -32,13 +33,12 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   
-  const [isFlyoutOpen, setIsFlyoutOpen] = useState<boolean>(false);
+  const [isFlyoutOpen, setIsFlyoutOpen] = useState<boolean>(false); // Mobile flyout
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authTriggerView, setAuthTriggerView] = useState<AppView | null>(null); // For login redirection
+  const [authTriggerView, setAuthTriggerView] = useState<AppView | null>(null);
 
   const [isResearchChatOpen, setIsResearchChatOpen] = useState<boolean>(false);
 
-  // Audio Player State (managed in App for persistence)
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
@@ -46,30 +46,26 @@ const App: React.FC = () => {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [selectedDateForAudio, setSelectedDateForAudio] = useState<Date>(selectedDate);
 
-  // Favorite Players State
   const [favoritePlayersMap, setFavoritePlayersMap] = useState<Record<string, boolean>>({});
 
   const authContext = useAuth();
-  const { currentUser, loading: authLoading } = authContext;
+  const { currentUser, loading: authLoading, signOutUser } = authContext;
 
   const today = new Date();
   const maxDate = today.toISOString().split('T')[0];
 
-  // Initialize Audio Element
   useEffect(() => {
     if (typeof Audio !== 'undefined' && !audioRef.current) {
       const audioElement = new Audio();
-      audioRef.current = audioElement; // Assign to the ref
+      audioRef.current = audioElement;
       
-      // Attach event listeners to the audioElement instance
       audioElement.onloadedmetadata = () => {
         setIsAudioLoading(false);
         setAudioError(null);
       };
       audioElement.onended = () => setIsAudioPlaying(false);
-      audioElement.onerror = (e: Event | string) => { // Type the event parameter
+      audioElement.onerror = (e: Event | string) => {
         let message = "Audio error.";
-        // Use audioElement here for type safety if needed, or audioRef.current if checked
         if (audioElement.error) {
             switch(audioElement.error.code) {
                 case MediaError.MEDIA_ERR_ABORTED: message = "Playback aborted."; break;
@@ -86,7 +82,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Update Audio Source when selectedDateForAudio changes (for mobile header)
    useEffect(() => {
     const fileName = formatDateToMMDDYY(selectedDateForAudio);
     const src = `/audio/${fileName}.mp3`;
@@ -99,7 +94,6 @@ const App: React.FC = () => {
       audioRef.current.load();
       setIsAudioLoading(true);
       setAudioError(null);
-      // setIsAudioPlaying(false); // Don't stop playback if source changes due to date change elsewhere while playing
     }
   }, [audioSrc]);
 
@@ -117,8 +111,6 @@ const App: React.FC = () => {
     }
   }, [isAudioPlaying, audioError, isAudioLoading]);
 
-
-  // Fetch user's favorite players on login
   useEffect(() => {
     if (currentUser) {
       getUserFavoritePlayers(currentUser.uid).then(favs => {
@@ -131,13 +123,10 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-
-  // Email Link Sign-In Logic
   useEffect(() => {
     const link = window.location.href;
     if (authContext.isSignInWithEmailLink(link)) {
       let email = window.localStorage.getItem(EMAIL_FOR_SIGN_IN_LINK_KEY);
-      // ... (rest of email link logic remains the same)
        if (!email) {
         email = window.prompt('Please provide your email to complete sign-in:');
       }
@@ -165,41 +154,32 @@ const App: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // View Routing Logic
   useEffect(() => {
     if (authLoading) return;
-
     if (currentUser) {
       if (authTriggerView === 'landing' || currentView === 'landing') {
         setCurrentView('dashboard');
-      } else if (currentView !== 'analytics' && currentView !== 'dashboard') { // If logged in from somewhere else, stay or go to dashboard
-        setCurrentView('dashboard'); // Default to dashboard if current view isn't analytics
+      } else if (currentView !== 'analytics' && currentView !== 'dashboard') {
+        setCurrentView('dashboard');
       }
-      setAuthTriggerView(null); // Reset trigger
-    } else { // No current user
-      if (currentView === 'dashboard') { // If on dashboard and logs out
+      setAuthTriggerView(null);
+    } else {
+      if (currentView === 'dashboard') {
         setCurrentView('landing');
       }
-      // If not on landing or analytics, and logs out, go to landing.
-      // If on analytics and logs out, stay on analytics.
-      // If on landing and logs out (session expired etc), stay on landing.
     }
   }, [currentUser, authLoading, currentView, authTriggerView]);
 
-
-  const loadData = useCallback(async (dateToLoad: Date,currentPlayerData?: PlayerData | null) => {
+  const loadData = useCallback(async (dateToLoad: Date, currentPlayerData?: PlayerData | null) => {
     setIsLoading(true);
     setError(null);
-
     const dateKey = formatDateForKey(dateToLoad);
     const humanReadable = formatDateForDisplay(dateToLoad);
     let forceRefresh = false;
 
     try {
       const firestoreResult: FirestoreReportWithTimestamp | null = await getAnalysisReportFromFirestore(dateKey);
-      
       if (firestoreResult) {
-        // ... (stale check logic remains the same)
         const todayKey = formatDateForKey(new Date());
         if (dateKey === todayKey) {
           const now = new Date();
@@ -208,23 +188,17 @@ const App: React.FC = () => {
             forceRefresh = true;
           }
         }
-
         if (!forceRefresh) {
           setAnalysisData(firestoreResult.report);
            if (firestoreResult.report.recommendations && firestoreResult.report.recommendations.length > 0) {
-            // Check if existing selectedPlayer (passed as currentPlayerData) is in the new report
             if (currentPlayerData && firestoreResult.report.recommendations.some(p => p.player === currentPlayerData.player && p.team === currentPlayerData.team)) {
                 setSelectedPlayer(currentPlayerData);
             } else {
                 setSelectedPlayer(firestoreResult.report.recommendations[0]);
             }
-          } else {
-            setSelectedPlayer(null);
-          }
+          } else { setSelectedPlayer(null); }
         }
-      } else {
-        forceRefresh = true;
-      }
+      } else { forceRefresh = true; }
 
       if (forceRefresh) {
         const geminiData = await fetchAnalysisForDate(dateKey, humanReadable);
@@ -232,12 +206,8 @@ const App: React.FC = () => {
         if (geminiData.recommendations && geminiData.recommendations.length > 0) {
            if (currentPlayerData && geminiData.recommendations.some(p => p.player === currentPlayerData.player && p.team === currentPlayerData.team)) {
                 setSelectedPlayer(currentPlayerData);
-            } else {
-                setSelectedPlayer(geminiData.recommendations[0]);
-            }
-        } else {
-          setSelectedPlayer(null);
-        }
+            } else { setSelectedPlayer(geminiData.recommendations[0]); }
+        } else { setSelectedPlayer(null); }
         if (geminiData && geminiData.recommendations && geminiData.recommendations.length > 0) {
           saveAnalysisReportToFirestore(dateKey, geminiData)
             .catch(fsError => console.error("Failed to save report to Firestore in background:", fsError));
@@ -261,37 +231,33 @@ const App: React.FC = () => {
 
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
-    setIsFlyoutOpen(false);
+    setIsFlyoutOpen(false); // Close mobile flyout if open
   };
   
   const handleMobileHeaderDateChange = (date: Date) => {
-    setSelectedDateForAudio(date); // For audio file
-    handleDateChange(date); // For main analytics
+    setSelectedDateForAudio(date);
+    handleDateChange(date);
   };
-
 
   const handlePlayerSelect = (player: PlayerData) => {
     setSelectedPlayer(player);
   };
   
-  const openAuthModal = (triggeredFromView: AppView) => {
-    setAuthTriggerView(triggeredFromView);
+  const openAuthModal = (triggeredFromView?: AppView) => { // Optional param
+    setAuthTriggerView(triggeredFromView || currentView); // Default to currentView if not provided
     setIsAuthModalOpen(true);
   };
+  
+  const handleSetCurrentView = (view: AppView) => {
+    setCurrentView(view);
+  };
 
-  // --- Quick Add Action Handlers ---
   const ensureStructuredReport = async (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, forDateKey: string, forHumanReadableDate: string): Promise<PlayerData | null> => {
     const playerId = playerData.mlbId || playerData.player.toLowerCase().replace(/\s+/g, '-');
-    
-    // Check if player is already in main recommendations
     const mainRec = analysisData?.recommendations.find(p => (p.mlbId === playerId) || (p.player === playerData.player && p.team === playerData.team));
     if (mainRec && mainRec.playerSpecificVerdict) return mainRec;
-
-    // Check cache in additionalPlayers
     let report = await getAdditionalPlayerReport(forDateKey, playerId);
     if (report) return report;
-
-    // Fetch from Gemini and cache
     report = await fetchStructuredReportForPlayer(playerData.player, forDateKey, forHumanReadableDate);
     if (report) {
       await saveAdditionalPlayerReport(forDateKey, playerId, report);
@@ -301,57 +267,35 @@ const App: React.FC = () => {
   };
 
   const handleSetPick = async (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => {
-    if (!currentUser) {
-      openAuthModal(currentView);
-      return;
-    }
+    if (!currentUser) { openAuthModal(currentView); return; }
     const dateKey = formatDateForKey(selectedDate);
     const humanReadable = formatDateForDisplay(selectedDate);
-
     const fullReport = await ensureStructuredReport(playerData, dateKey, humanReadable);
-    if (!fullReport) {
-      alert(`Could not retrieve full data for ${playerData.player} to set pick.`);
-      return;
-    }
-
+    if (!fullReport) { alert(`Could not retrieve full data for ${playerData.player} to set pick.`); return; }
     try {
       await saveUserDailyPick(currentUser.uid, dateKey, {
         playerId: fullReport.mlbId || fullReport.player.toLowerCase().replace(/\s+/g, '-'),
         playerName: fullReport.player,
         team: fullReport.team,
-        source: 'researched', // Or determine source more accurately
+        source: 'researched',
       });
       alert(`${fullReport.player} set as your pick for ${humanReadable}.`);
-      // Optionally, update dashboard if it's visible or has a list of picks
-    } catch (e) {
-      console.error("Error setting pick:", e);
-      alert(`Failed to set pick for ${fullReport.player}.`);
-    }
+    } catch (e) { console.error("Error setting pick:", e); alert(`Failed to set pick for ${fullReport.player}.`); }
   };
 
   const handleToggleFavorite = async (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => {
-    if (!currentUser) {
-      openAuthModal(currentView);
-      return;
-    }
+    if (!currentUser) { openAuthModal(currentView); return; }
     const playerId = playerData.mlbId || playerData.player.toLowerCase().replace(/\s+/g, '-');
     const isFav = favoritePlayersMap[playerId];
-
-    // Ensure structured report for full name/team, even if not strictly needed for toggle by ID
-    // This makes sure we have good data if adding for the first time
     const fullReport = await ensureStructuredReport(playerData, formatDateForKey(selectedDate), formatDateForDisplay(selectedDate));
-    if (!fullReport && !isFav) { // Only critical if adding and couldn't get report
-        alert(`Could not retrieve full data for ${playerData.player} to manage favorite.`);
-        return;
-    }
-
+    if (!fullReport && !isFav) { alert(`Could not retrieve full data for ${playerData.player} to manage favorite.`); return; }
     try {
       if (isFav) {
         await removePlayerFromFavorites(currentUser.uid, playerId);
         setFavoritePlayersMap(prev => ({ ...prev, [playerId]: false }));
         alert(`${playerData.player} removed from favorites.`);
       } else {
-        await addPlayerToFavorites(currentUser.uid, { // Use fullReport data if available, else playerData
+        await addPlayerToFavorites(currentUser.uid, {
             player: fullReport?.player || playerData.player,
             team: fullReport?.team || playerData.team,
             mlbId: fullReport?.mlbId || playerData.mlbId,
@@ -359,15 +303,10 @@ const App: React.FC = () => {
         setFavoritePlayersMap(prev => ({ ...prev, [playerId]: true }));
         alert(`${playerData.player} added to favorites!`);
       }
-    } catch (e) {
-      console.error("Error toggling favorite:", e);
-      alert(`Failed to update favorites for ${playerData.player}.`);
-    }
+    } catch (e) { console.error("Error toggling favorite:", e); alert(`Failed to update favorites for ${playerData.player}.`); }
   };
 
-
-  // --- Render Logic ---
-  if (authLoading && currentView !== 'landing' && currentView !== 'dashboard') {
+  if (authLoading && currentView !== 'landing') { // Simplified this condition
     return (
       <div className="min-h-screen bg-[var(--sidebar-bg)] flex items-center justify-center">
         <Loader message="Initializing STREAKSENSE..." />
@@ -382,71 +321,22 @@ const App: React.FC = () => {
            />;
   }
 
-  if (currentUser && currentView === 'dashboard') {
-    return (
-      <>
-        <DashboardPage
-          currentUser={currentUser}
-          selectedDate={selectedDate}
-          onNavigateToAnalytics={() => {
-            setCurrentView('analytics');
-            if (!analysisData || formatDateForKey(selectedDate) !== analysisData.date) {
-              loadData(selectedDate, selectedPlayer);
-            }
-          }}
-          onLogout={() => {
-            authContext.signOutUser();
-            setCurrentView('landing');
-          }}
-          onOpenResearchChat={() => setIsResearchChatOpen(true)}
-        />
-        {isResearchChatOpen && (
-          <PlayerResearchChat
-            isOpen={isResearchChatOpen}
-            onClose={() => setIsResearchChatOpen(false)}
-            selectedDate={selectedDate}
-          />
-        )}
-        {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />}
-      </>
-    );
-  }
-
-  // Analytics View
-  let mainContent;
-  if (isLoading && currentView === 'analytics') {
-    mainContent = (
-      <div className="flex flex-col items-center justify-center flex-grow h-full w-full">
-        <Loader message="Analyzing Matchups..." />
-      </div>
-    );
-  } else if (error && currentView === 'analytics') {
-    mainContent = (
-      <div className="flex flex-col items-center justify-center text-center p-8 h-full">
-        <FiAlertTriangle className="w-16 h-16 text-[var(--accent-negative)] mb-4" />
-        <h2 className="text-2xl font-[var(--font-display)] text-[var(--primary-glow)] mb-2">Analysis Unavailable</h2>
-        <p className="text-[var(--text-secondary)]">{error}</p>
-        <p className="text-sm text-[var(--text-secondary)] mt-2">Please try a different date or check back later.</p>
-      </div>
-    );
-  } else if (analysisData && selectedPlayer && currentView === 'analytics') {
-    mainContent = <MainDisplay player={selectedPlayer} reportDate={analysisData.date} />;
-  } else if (currentView === 'analytics') {
-    mainContent = (
-      <div className="flex flex-col items-center justify-center text-center p-8 h-full">
-          <FiAlertTriangle className="w-16 h-16 text-[var(--text-secondary)] mb-4" />
-          <h2 className="text-2xl font-[var(--font-display)] text-[var(--text-primary)]">No Data Available</h2>
-          <p className="text-[var(--text-secondary)]">Player analysis data could not be loaded for the selected date.</p>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">This could be due to no games on this day, or an issue fetching the analysis.</p>
-      </div>
-    );
-  }
-
-
+  // Main App Structure (Post-Landing)
   return (
-    <div className="min-h-screen bg-[var(--sidebar-bg)] font-[var(--font-body)] flex flex-col">
+    <div className="min-h-screen bg-[var(--sidebar-bg)] font-[var(--font-body)] flex flex-col md:flex-row">
+      {/* Primary Navigation (Desktop) */}
+      <PrimaryNavigation
+        currentView={currentView}
+        onSetView={handleSetCurrentView}
+        currentUser={currentUser}
+        onLogout={async () => { await signOutUser(); setCurrentView('landing');}}
+        onOpenAuthModal={() => openAuthModal()}
+        onOpenResearchChat={() => setIsResearchChatOpen(true)}
+      />
+
+      {/* Mobile Header (Mobile Only) */}
       <MobileHeader
-        selectedDate={selectedDateForAudio} // Use separate date for audio to decouple from analytics date if needed
+        selectedDate={selectedDateForAudio}
         onMenuToggle={() => setIsFlyoutOpen(true)}
         onDateChange={handleMobileHeaderDateChange}
         maxDate={maxDate}
@@ -456,9 +346,10 @@ const App: React.FC = () => {
         isAudioLoading={isAudioLoading}
         audioError={audioError}
         onToggleAudio={toggleAudioPlayPause}
-        hideMenuButton={currentView === 'dashboard'}
+        hideMenuButton={currentView === 'dashboard'} // Dashboard has no flyout on mobile
       />
 
+      {/* Mobile Flyout Menu (Mobile Only) */}
       <FlyoutMenu
         isOpen={isFlyoutOpen}
         onClose={() => setIsFlyoutOpen(false)}
@@ -477,51 +368,85 @@ const App: React.FC = () => {
         onToggleFavorite={handleToggleFavorite}
       />
 
-      <div className="flex flex-row flex-1 overflow-hidden">
-        {currentView !== 'dashboard' && (
-          <Sidebar
-            selectedDate={selectedDate}
-            onDateChange={handleDateChange}
-            analysisData={analysisData}
-            onPlayerSelect={handlePlayerSelect}
-            selectedPlayerId={selectedPlayer?.player}
-            isLoading={isLoading}
-            maxDate={maxDate}
-            className="hidden md:flex md:flex-col"
-            onLogoClick={currentUser ? () => setCurrentView('dashboard') : () => setCurrentView('landing')}
-            onOpenAuthModal={() => openAuthModal(currentView)}
+      {/* Main Content Area (to the right of PrimaryNavigation on Desktop) */}
+      <div className="flex-1 flex flex-col overflow-hidden"> {/* This div wraps the content area for desktop */}
+        {currentView === 'dashboard' && currentUser && (
+          <DashboardPage
             currentUser={currentUser}
-            favoritePlayersMap={favoritePlayersMap}
-            onSetPick={handleSetPick}
-            onToggleFavorite={handleToggleFavorite}
+            selectedDate={selectedDate} // Pass selectedDate for context in dashboard picks
+            onNavigateToAnalytics={() => {
+              setCurrentView('analytics');
+              if (!analysisData || formatDateForKey(selectedDate) !== analysisData?.date) {
+                 loadData(selectedDate, selectedPlayer);
+              }
+            }}
+            onLogout={async () => { await signOutUser(); setCurrentView('landing');}} // Redundant if in PrimaryNav, keep for now
+            onOpenResearchChat={() => setIsResearchChatOpen(true)}
           />
         )}
 
-        <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area">
-          {currentView !== 'dashboard' && (
-            <MobilePlayerPicker
+        {currentView === 'analytics' && (
+          <div className="flex flex-row flex-1 overflow-hidden"> {/* Container for Analytics Sidebar + MainDisplay */}
+            <AnalyticsContextualPanel
+              selectedDate={selectedDate}
+              onDateChange={handleDateChange}
               analysisData={analysisData}
               onPlayerSelect={handlePlayerSelect}
               selectedPlayerId={selectedPlayer?.player}
               isLoading={isLoading}
-              className="md:hidden sticky top-0 z-20 bg-[var(--main-bg)] shadow-sm"
+              maxDate={maxDate}
+              className="hidden md:flex md:flex-col" // Only for desktop
+              // No onLogoClick or top-level auth, handled by PrimaryNav
               currentUser={currentUser}
               favoritePlayersMap={favoritePlayersMap}
               onSetPick={handleSetPick}
               onToggleFavorite={handleToggleFavorite}
-              onOpenAuthModal={() => openAuthModal(currentView)}
-              selectedDate={selectedDate}
+              onOpenAuthModal={() => openAuthModal(currentView)} // Contextual auth open
             />
-          )}
-
-          <main className={`flex-grow bg-[var(--main-bg)] p-4 sm:p-6 lg:p-8 flex flex-col
-                           ${selectedPlayer && analysisData && currentView === 'analytics' ? 'pt-2 md:pt-4' : 'pt-4'}`}>
-            {mainContent}
-          </main>
-        </div>
+            
+            <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area">
+              <MobilePlayerPicker // Stays for mobile analytics view
+                analysisData={analysisData}
+                onPlayerSelect={handlePlayerSelect}
+                selectedPlayerId={selectedPlayer?.player}
+                isLoading={isLoading}
+                className="md:hidden sticky top-0 z-20 bg-[var(--main-bg)] shadow-sm"
+                currentUser={currentUser}
+                favoritePlayersMap={favoritePlayersMap}
+                onSetPick={handleSetPick}
+                onToggleFavorite={handleToggleFavorite}
+                onOpenAuthModal={() => openAuthModal(currentView)}
+                selectedDate={selectedDate}
+              />
+              <main className={`flex-grow bg-[var(--main-bg)] p-4 sm:p-6 lg:p-8 flex flex-col ${selectedPlayer && analysisData ? 'pt-2 md:pt-4' : 'pt-4'}`}>
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center flex-grow h-full w-full">
+                        <Loader message="Analyzing Matchups..." />
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col items-center justify-center text-center p-8 h-full">
+                        <FiAlertTriangle className="w-16 h-16 text-[var(--accent-negative)] mb-4" />
+                        <h2 className="text-2xl font-[var(--font-display)] text-[var(--primary-glow)] mb-2">Analysis Unavailable</h2>
+                        <p className="text-[var(--text-secondary)]">{error}</p>
+                        <p className="text-sm text-[var(--text-secondary)] mt-2">Please try a different date or check back later.</p>
+                    </div>
+                ) : analysisData && selectedPlayer ? (
+                    <MainDisplay player={selectedPlayer} reportDate={analysisData.date} />
+                ) : (
+                    <div className="flex flex-col items-center justify-center text-center p-8 h-full">
+                        <FiAlertTriangle className="w-16 h-16 text-[var(--text-secondary)] mb-4" />
+                        <h2 className="text-2xl font-[var(--font-display)] text-[var(--text-primary)]">No Data Available</h2>
+                        <p className="text-[var(--text-secondary)]">Player analysis data could not be loaded for the selected date.</p>
+                    </div>
+                )}
+              </main>
+            </div>
+          </div>
+        )}
       </div>
+
       {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />}
-      {isResearchChatOpen && currentUser && ( // Ensure user is logged in for research chat
+      {isResearchChatOpen && currentUser && (
         <PlayerResearchChat
           isOpen={isResearchChatOpen}
           onClose={() => setIsResearchChatOpen(false)}

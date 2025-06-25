@@ -6,7 +6,7 @@ import { AuthModal } from './AuthModal';
 // AudioPlayer is removed from FlyoutMenu
 import type { AnalysisReport, HonorableMention, PlayerData } from '../types';
 import { Loader } from './Loader';
-import { RecommendationItem } from './Sidebar'; // Re-use RecommendationItem
+import { RecommendationItem } from './AnalyticsContextualPanel'; // Updated import if Sidebar was renamed
 import type { User as FirebaseUser } from 'firebase/auth';
 
 interface FlyoutMenuProps {
@@ -19,12 +19,12 @@ interface FlyoutMenuProps {
   maxDate: string;
   className?: string;
   onNavigateToDashboard?: () => void;
-  onOpenAuthModal: () => void; // Now required for quick actions
-  onOpenResearchChat: () => void; // New prop for research chat
-  currentUser: FirebaseUser | null; // For quick actions
-  favoritePlayersMap: Record<string, boolean>; // For quick actions
-  onSetPick: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; // For quick actions
-  onToggleFavorite: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; // For quick actions
+  onOpenAuthModal: () => void; 
+  onOpenResearchChat: () => void; 
+  currentUser: FirebaseUser | null; 
+  favoritePlayersMap: Record<string, boolean>; 
+  onSetPick: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; 
+  onToggleFavorite: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; 
 }
 
 export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
@@ -44,8 +44,8 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
   onSetPick,
   onToggleFavorite
 }) => {
-  const { signOutUser, loading: authLoading } = useAuth(); // AuthModal is opened by App now
-  const [isAuthModalOpenForFlyout, setIsAuthModalOpenForFlyout] = useState(false); // Local state for flyout's own auth modal if needed, or use onOpenAuthModal
+  const { signOutUser, loading: authLoading } = useAuth(); 
+  const [isAuthModalOpenForFlyout, setIsAuthModalOpenForFlyout] = useState(false); 
 
 
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,8 +63,8 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
   };
 
   const handleOpenAuthFromFlyout = () => {
-    onClose(); // Close flyout first
-    onOpenAuthModal(); // Then call App's auth modal opener
+    onClose(); 
+    onOpenAuthModal(); 
   }
   
   const relevantHonorableData = (h: HonorableMention): Pick<PlayerData, 'player' | 'team' | 'mlbId' | 'finalVerdict'> => ({
@@ -136,8 +136,6 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
             </section>
           )}
 
-          {/* AudioPlayer removed from here */}
-
           {analysisData?.watchListCautionaryNotes && (
             <section>
               <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2 flex items-center">
@@ -149,11 +147,10 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
                 <ul className="space-y-1.5">
                   {analysisData.watchListCautionaryNotes.honorableMentions.slice(0, 3).map((item: HonorableMention, idx) => (
                     <RecommendationItem
-                      key={`flyout-watch-${item.player}-${idx}`}
+                      key={`flyout-watch-${item.player}-${idx}`} // Using key directly
                       player={relevantHonorableData(item)}
-                      // onSelect: Watchlist items not selectable for main display from flyout
                       isSelected={false}
-                      isSelectable={false} // Make them non-selectable for main display
+                      isSelectable={false}
                       currentUser={currentUser}
                       selectedDate={selectedDate}
                       favoritePlayersMap={favoritePlayersMap}
@@ -203,7 +200,6 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
           </section>
         </div>
       </aside>
-      {/* AuthModal is now rendered and controlled by App.tsx, this local one is fallback if needed */}
       {isAuthModalOpenForFlyout && <AuthModal isOpen={isAuthModalOpenForFlyout} onClose={() => setIsAuthModalOpenForFlyout(false)} />}
     </>
   );

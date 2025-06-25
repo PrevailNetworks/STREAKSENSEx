@@ -84,26 +84,25 @@ export interface PlayerData {
   mlbId?: string; // MLB Player ID for headshot
   imageUrl?: string; // Optional URL for player's image (fallback)
   corePerformance: CorePerformanceData;
-  statcastValidation: StatcastMetric[]; // Keep for potential use or if AI includes it and we want to parse it from verdict
+  statcastValidation: StatcastMetric[]; 
   matchup: MatchupData;
   synthesis: SynthesisData;
   finalVerdict: {
     compositeHitProbability: number; 
   };
-  // This string will now hold a comprehensive, Markdown-formatted multi-section analysis.
   playerSpecificVerdict?: string; 
 }
 
 export interface HonorableMention {
   player: string;
-  team: string; // Full team name
+  team: string; 
   description: string;
   compositeHitProbability?: number; 
 }
 
 export interface IneligiblePlayer {
   player: string;
-  team: string; // Full team name
+  team: string; 
   reason: string;
 }
 
@@ -123,4 +122,22 @@ export interface AnalysisReport {
 export interface ChartDataPoint {
   name: string;
   value: number;
+}
+
+// Added from userService.ts for App.tsx context
+export interface UserDailyPick {
+  playerId: string;
+  playerName: string;
+  team: string; // Make team optional or provide a default if direct input might not have it
+  pickDate: string;
+  source: 'recommendation' | 'researched' | 'favorite' | 'direct_input';
+  pickedAt: Date; // Use Date for client-side representation
+}
+
+export interface FavoritePlayer {
+  playerId: string;
+  playerName: string;
+  team: string;
+  mlbId?: string;
+  addedAt: Date; // Use Date for client-side representation
 }

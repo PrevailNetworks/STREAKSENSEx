@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import type { AnalysisReport, PlayerData, WatchListCautionaryNotesData, HonorableMention } from '../types';
-import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser } from 'react-icons/fi'; // Added FiLogIn, FiLogOut, FiUser
+import type { AnalysisReport, PlayerData, HonorableMention } from '../types';
+import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut } from 'react-icons/fi';
 import { AudioPlayer } from './AudioPlayer';
 import { Loader } from './Loader'; 
-import { useAuth } from '@/contexts/AuthContext'; // Added
-import { AuthModal } from './AuthModal'; // Added
+import { useAuth } from '@/contexts/AuthContext'; 
+import { AuthModal } from './AuthModal'; 
 
 
 interface SidebarProps {
@@ -67,8 +67,8 @@ const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, pro
 
 
 export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, analysisData, onPlayerSelect, selectedPlayerId, isLoading }) => {
-  const { currentUser, signOutUser, loading: authLoading } = useAuth(); // Added
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // Added
+  const { currentUser, signOutUser, loading: authLoading } = useAuth(); 
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
 
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
@@ -81,9 +81,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
   const maxDate = today.toISOString().split('T')[0];
 
   return (
-    <> {/* Added Fragment */}
+    <> 
       <aside className="w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex-shrink-0 space-y-6 overflow-y-auto h-screen md:sticky md:top-0">
-        <div className="flex justify-between items-start"> {/* Modified for auth button */}
+        <div className="flex justify-between items-start"> 
             <div className="logo text-left">
               <h1 className="font-[var(--font-display)] font-bold text-4xl tracking-tight uppercase neon-text italic">
                 STREAKSENSE
@@ -104,17 +104,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                   </div>
               </div>
             </div>
-            {/* Auth Section */}
+            
             <div className="text-right">
-                {currentUser ? (
+                {authLoading ? (
+                     <div className="w-20 h-8 bg-[var(--main-bg)] rounded-md animate-pulse"></div>
+                ) : currentUser ? (
                     <div className="flex flex-col items-end">
-                        <p className="text-xs text-[var(--text-secondary)] truncate max-w-[100px]" title={currentUser.email || 'User'}>
+                        <p className="text-xs text-[var(--text-secondary)] truncate max-w-[100px] sm:max-w-[120px]" title={currentUser.email || 'Authenticated User'}>
                             {currentUser.displayName || currentUser.email}
                         </p>
                         <button 
                             onClick={signOutUser} 
-                            disabled={authLoading}
-                            className="text-xs text-[var(--primary-glow)] hover:underline flex items-center disabled:opacity-50"
+                            className="text-xs text-[var(--primary-glow)] hover:underline flex items-center"
                         >
                            <FiLogOut className="mr-1"/> Logout
                         </button>
@@ -122,8 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                 ) : (
                     <button 
                         onClick={() => setIsAuthModalOpen(true)}
-                        disabled={authLoading}
-                        className="bg-[var(--primary-glow)] text-black px-3 py-1.5 rounded-md text-xs font-semibold hover:opacity-90 transition-opacity flex items-center disabled:opacity-50"
+                        className="bg-[var(--primary-glow)] text-black px-3 py-1.5 rounded-md text-xs font-semibold hover:opacity-90 transition-opacity flex items-center"
                     >
                         <FiLogIn className="mr-1.5"/> Login / Sign Up
                     </button>
@@ -190,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
         <ImportantNote />
 
       </aside>
-      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />} {/* Added Modal */}
+      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />} 
     </> 
   );
 };

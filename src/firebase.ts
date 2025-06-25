@@ -1,10 +1,9 @@
 // src/firebase.ts
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import type { FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app'; // Changed
 import { getFirestore } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth'; // Added
-import type { Auth } from 'firebase/auth'; // Added
+import { getAuth } from 'firebase/auth';
+import type { Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -26,15 +25,15 @@ if (!firebaseConfig.projectId) {
 }
 
 
-let app: FirebaseApp;
+let app: ReturnType<typeof initializeApp>; 
 
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+if (!getApps().length) { // Changed
+  app = initializeApp(firebaseConfig); // Changed
 } else {
-  app = getApp();
+  app = getApp(); // Changed
 }
 
 const db: Firestore = getFirestore(app);
-const auth: Auth = getAuth(app); // Added
+const auth: Auth = getAuth(app);
 
-export { app, db, auth }; // Added auth to exports
+export { app, db, auth };

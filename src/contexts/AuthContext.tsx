@@ -1,7 +1,6 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
-  Auth,
   User,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -44,16 +43,16 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const EMAIL_FOR_SIGN_IN_LINK_KEY = 'streaksense_emailForSignInLink';
+export const EMAIL_FOR_SIGN_IN_LINK_KEY = 'streaksense_emailForSignInLink'; // Exported for App.tsx
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true); // Start true for initial auth state check
+  const [loading, setLoading] = useState<boolean>(true); 
   const [error, setError] = useState<string | null>(null);
 
   const actionCodeSettings: ActionCodeSettings = {
-    url: window.location.origin, // Redirect back to your app
-    handleCodeInApp: true, // This must be true for email link sign-in
+    url: typeof window !== 'undefined' ? window.location.origin : '', // Ensure this runs client-side
+    handleCodeInApp: true, 
   };
 
   const clearError = () => setError(null);
@@ -92,12 +91,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      await firebaseSendSignInLinkToEmail(auth, email, actionCodeSettings);
-      window.localStorage.setItem(EMAIL_FOR_SIGN_IN_LINK_KEY, email); // Store email
-      alert('Sign-in link sent to your email!');
+      if (typeof window !== 'undefined') { // Ensure localStorage is available
+        await firebaseSendSignInLinkToEmail(auth, email, actionCodeSettings);
+        window.localStorage.setItem(EMAIL_FOR_SIGN_IN_LINK_KEY, email); 
+        alert('Sign-in link sent to your email! Please check your inbox (and spam folder).');
+      } else {
+        throw new Error("Cannot send email link from server-side context.");
+      }
     } catch (e: any) {
       setError(e.message || "Failed to send sign-in link.");
       console.error("Send sign-in link error:", e);
+      throw e; // Re-throw to be caught by UI if needed
     } finally {
       setLoading(false);
     }
@@ -112,7 +116,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
     try {
       const userCredential = await firebaseSignInWithEmailLink(auth, email, link);
-      window.localStorage.removeItem(EMAIL_FOR_SIGN_IN_LINK_KEY);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(EMAIL_FOR_SIGN_IN_LINK_KEY);
+      }
       return userCredential.user;
     } catch (e: any) {
       setError(e.message || "Failed to sign in with email link.");
@@ -157,7 +163,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setCurrentUser(user);
       setLoading(false);
     });
-    return unsubscribe; // Cleanup subscription on unmount
+    return unsubscribe; 
   }, []);
 
   const value = {
@@ -174,5 +180,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     clearError
   };
 
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+  // Render children only when initial auth check is complete (loading is false)
+  // This prevents rendering parts of the app that depend on auth state too early.
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

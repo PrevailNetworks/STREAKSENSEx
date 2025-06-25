@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } // Added useState
 import type { AnalysisReport, PlayerData, WatchListCautionaryNotesData, HonorableMention } from '../types';
-import { FiChevronRight, FiAlertCircle, FiCalendar } from 'react-icons/fi'; // Added FiCalendar
+import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser } from 'react-icons/fi'; // Added FiLogIn, FiLogOut, FiUser
 import { AudioPlayer } from './AudioPlayer';
-import { Loader } from './Loader'; // Import the Loader component
+import { Loader } from './Loader'; 
+import { useAuth } from '@/contexts/AuthContext'; // Added
+import { AuthModal } from './AuthModal'; // Added
 
 
 interface SidebarProps {
@@ -65,6 +67,9 @@ const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, pro
 
 
 export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, analysisData, onPlayerSelect, selectedPlayerId, isLoading }) => {
+  const { currentUser, signOutUser, loading: authLoading } = useAuth(); // Added
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // Added
+
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
@@ -76,85 +81,116 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
   const maxDate = today.toISOString().split('T')[0];
 
   return (
-    <aside className="w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex-shrink-0 space-y-6 overflow-y-auto h-screen md:sticky md:top-0">
-      <div className="logo text-left">
-        <h1 className="font-[var(--font-display)] font-bold text-4xl tracking-tight uppercase neon-text italic">
-          STREAKSENSE
-        </h1>
-        <div className="flex items-center mt-1">
-            <p className="text-xs text-[var(--text-secondary)] uppercase mr-2">Game Date: </p>
-            <div className="relative flex items-center group"> {/* Wrapper for input and icon */}
-                <input
-                    type="date"
-                    id="sidebar-date-picker"
-                    value={selectedDate.toISOString().split('T')[0]}
-                    max={maxDate}
-                    onChange={handleDateInputChange}
-                    className="bg-transparent border-0 text-[var(--primary-glow)] p-0 text-xs font-semibold focus:outline-none focus:ring-0 appearance-none pr-5 cursor-pointer" // Added pr-5 for icon space and cursor
-                    style={{ colorScheme: 'dark' }}
-                />
-                <FiCalendar className="w-3.5 h-3.5 text-[var(--primary-glow)] opacity-70 group-hover:opacity-100 transition-opacity absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+    <> {/* Added Fragment */}
+      <aside className="w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex-shrink-0 space-y-6 overflow-y-auto h-screen md:sticky md:top-0">
+        <div className="flex justify-between items-start"> {/* Modified for auth button */}
+            <div className="logo text-left">
+              <h1 className="font-[var(--font-display)] font-bold text-4xl tracking-tight uppercase neon-text italic">
+                STREAKSENSE
+              </h1>
+              <div className="flex items-center mt-1">
+                  <p className="text-xs text-[var(--text-secondary)] uppercase mr-2">BTS Analysis for</p>
+                  <div className="relative flex items-center group">
+                      <input
+                          type="date"
+                          id="sidebar-date-picker"
+                          value={selectedDate.toISOString().split('T')[0]}
+                          max={maxDate}
+                          onChange={handleDateInputChange}
+                          className="bg-transparent border-0 text-[var(--primary-glow)] p-0 text-xs font-semibold focus:outline-none focus:ring-0 appearance-none pr-5 cursor-pointer"
+                          style={{ colorScheme: 'dark' }}
+                      />
+                      <FiCalendar className="w-3.5 h-3.5 text-[var(--primary-glow)] opacity-70 group-hover:opacity-100 transition-opacity absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                  </div>
+              </div>
+            </div>
+            {/* Auth Section */}
+            <div className="text-right">
+                {currentUser ? (
+                    <div className="flex flex-col items-end">
+                        <p className="text-xs text-[var(--text-secondary)] truncate max-w-[100px]" title={currentUser.email || 'User'}>
+                            {currentUser.displayName || currentUser.email}
+                        </p>
+                        <button 
+                            onClick={signOutUser} 
+                            disabled={authLoading}
+                            className="text-xs text-[var(--primary-glow)] hover:underline flex items-center disabled:opacity-50"
+                        >
+                           <FiLogOut className="mr-1"/> Logout
+                        </button>
+                    </div>
+                ) : (
+                    <button 
+                        onClick={() => setIsAuthModalOpen(true)}
+                        disabled={authLoading}
+                        className="bg-[var(--primary-glow)] text-black px-3 py-1.5 rounded-md text-xs font-semibold hover:opacity-90 transition-opacity flex items-center disabled:opacity-50"
+                    >
+                        <FiLogIn className="mr-1.5"/> Login / Sign Up
+                    </button>
+                )}
             </div>
         </div>
-      </div>
 
-      <section>
-        <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
-        {isLoading ? (
-          <Loader message="Loading Picks..." />
-        ) : analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
-          <ul className="space-y-1.5" role="listbox" aria-label="Top Player Recommendations">
-            {analysisData.recommendations.slice(0, 5).map((player, index) => ( 
-              <RecommendationItem
-                key={player.player}
-                playerName={player.player}
-                team={player.team}
-                probability={player.finalVerdict.compositeHitProbability}
-                onSelect={() => onPlayerSelect(player)}
-                isSelected={player.player === selectedPlayerId}
-                isSelectable={true}
-                index={index}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-xs text-center py-4 text-[var(--text-secondary)]">No recommendations available.</p>
-        )}
-      </section>
 
-      {analysisData?.watchListCautionaryNotes && (
-        <>
         <section>
-            <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Watch List</h2>
-             {analysisData.watchListCautionaryNotes.honorableMentions.length > 0 ? (
-                <ul className="space-y-1">
-                    {analysisData.watchListCautionaryNotes.honorableMentions.slice(0,3).map((item: HonorableMention, idx) => ( 
-                         <RecommendationItem
-                            key={item.player + idx}
-                            playerName={item.player}
-                            team={item.team}
-                            probability={item.compositeHitProbability} 
-                            onSelect={() => { /* Watchlist items are not selectable for main display */ }}
-                            isSelected={false} 
-                            isSelectable={false} 
-                            index={idx + (analysisData.recommendations?.length || 0)}
-                        />
-                    ))}
-                </ul>
-            ) : (
-                <p className="text-xs text-[var(--text-secondary)] text-center py-2">No honorable mentions.</p>
-            )}
+          <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
+          {isLoading ? (
+            <Loader message="Loading Picks..." />
+          ) : analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
+            <ul className="space-y-1.5" role="listbox" aria-label="Top Player Recommendations">
+              {analysisData.recommendations.slice(0, 5).map((player, index) => ( 
+                <RecommendationItem
+                  key={player.player}
+                  playerName={player.player}
+                  team={player.team}
+                  probability={player.finalVerdict.compositeHitProbability}
+                  onSelect={() => onPlayerSelect(player)}
+                  isSelected={player.player === selectedPlayerId}
+                  isSelectable={true}
+                  index={index}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-center py-4 text-[var(--text-secondary)]">No recommendations available.</p>
+          )}
         </section>
-        </>
-      )}
 
-      <section>
-        <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h2>
-        <AudioPlayer selectedDate={selectedDate} />
-      </section>
+        {analysisData?.watchListCautionaryNotes && (
+          <>
+          <section>
+              <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Watch List</h2>
+              {analysisData.watchListCautionaryNotes.honorableMentions.length > 0 ? (
+                  <ul className="space-y-1">
+                      {analysisData.watchListCautionaryNotes.honorableMentions.slice(0,3).map((item: HonorableMention, idx) => ( 
+                          <RecommendationItem
+                              key={item.player + idx}
+                              playerName={item.player}
+                              team={item.team}
+                              probability={item.compositeHitProbability} 
+                              onSelect={() => { /* Watchlist items are not selectable for main display */ }}
+                              isSelected={false} 
+                              isSelectable={false} 
+                              index={idx + (analysisData.recommendations?.length || 0)}
+                          />
+                      ))}
+                  </ul>
+              ) : (
+                  <p className="text-xs text-[var(--text-secondary)] text-center py-2">No honorable mentions.</p>
+              )}
+          </section>
+          </>
+        )}
 
-      <ImportantNote />
+        <section>
+          <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h2>
+          <AudioPlayer selectedDate={selectedDate} />
+        </section>
 
-    </aside>
+        <ImportantNote />
+
+      </aside>
+      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />} {/* Added Modal */}
+    </> 
   );
 };

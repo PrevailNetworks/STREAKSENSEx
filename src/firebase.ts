@@ -3,6 +3,8 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import type { FirebaseApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth'; // Added
+import type { Auth } from 'firebase/auth'; // Added
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,7 +18,6 @@ const firebaseConfig = {
 
 if (!firebaseConfig.apiKey) {
     console.error("Firebase API Key is missing. Check your .env.local file and VITE_FIREBASE_API_KEY variable.");
-    // In a real app, you might want a more user-friendly error display or a way to prevent app crash
     throw new Error("Firebase API Key is missing. App cannot initialize.");
 }
 if (!firebaseConfig.projectId) {
@@ -27,16 +28,13 @@ if (!firebaseConfig.projectId) {
 
 let app: FirebaseApp;
 
-// Check if Firebase has already been initialized.
 if (!getApps().length) {
-  // Initialize Firebase if it hasn't been initialized yet.
   app = initializeApp(firebaseConfig);
 } else {
-  // Get the default Firebase app if it has already been initialized.
   app = getApp();
 }
 
-// Get Firestore instance
 const db: Firestore = getFirestore(app);
+const auth: Auth = getAuth(app); // Added
 
-export { app, db };
+export { app, db, auth }; // Added auth to exports

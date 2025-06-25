@@ -1,11 +1,13 @@
+
 // src/services/firestoreService.ts
 import { db } from '@/firebase'; 
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
-import type { AnalysisReport } from '@/types';
+import { doc, getDoc, setDoc, Timestamp, collection, serverTimestamp } from 'firebase/firestore';
+import type { AnalysisReport, PlayerData } from '@/types';
 
-const REPORTS_COLLECTION = 'analysisReports'; // Firestore collection name
+const REPORTS_COLLECTION = 'analysisReports';
+const ADDITIONAL_PLAYERS_SUBCOLLECTION = 'additionalPlayers';
 
-// Interface for the data as it's stored in Firestore, including our timestamp
+
 interface StoredAnalysisReport extends AnalysisReport {
   fetchedAt: Timestamp;
 }
@@ -15,6 +17,7 @@ export interface FirestoreReportWithTimestamp {
   fetchedAt: Date;
 }
 
+// Main daily analysis report (top 5)
 export const getAnalysisReportFromFirestore = async (dateString: string): Promise<FirestoreReportWithTimestamp | null> => {
   try {
     const docRef = doc(db, REPORTS_COLLECTION, dateString);
@@ -28,10 +31,7 @@ export const getAnalysisReportFromFirestore = async (dateString: string): Promis
           console.warn(`Firestore data for ${dateString} is missing 'recommendations'. Returning null.`);
           return null;
       }
-      // Convert Firestore Timestamp to JavaScript Date object
       const fetchedAtJSDate = data.fetchedAt.toDate();
-      
-      // Return the main report data and the JS Date version of fetchedAt
       return { report: data as AnalysisReport, fetchedAt: fetchedAtJSDate };
     } else {
       console.log(`No report found in Firestore for date: ${dateString}.`);
@@ -45,7 +45,7 @@ export const getAnalysisReportFromFirestore = async (dateString: string): Promis
 
 export const saveAnalysisReportToFirestore = async (dateString: string, report: AnalysisReport): Promise<void> => {
   if (!report || !report.recommendations || report.recommendations.length === 0) {
-    console.warn(`Attempted to save an empty or incomplete report for ${dateString} to Firestore. Skipping save.`);
+    console.warn(`Attempted to save an empty or incomplete main report for ${dateString} to Firestore. Skipping save.`);
     return;
   }
   try {
@@ -55,8 +55,55 @@ export const saveAnalysisReportToFirestore = async (dateString: string, report: 
     };
     const docRef = doc(db, REPORTS_COLLECTION, dateString);
     await setDoc(docRef, reportWithTimestamp);
-    console.log(`Report for ${dateString} successfully saved to Firestore.`);
+    console.log(`Main report for ${dateString} successfully saved to Firestore.`);
   } catch (error) {
-    console.error(`Error saving report for ${dateString} to Firestore:`, error);
+    console.error(`Error saving main report for ${dateString} to Firestore:`, error);
+  }
+};
+
+
+// --- Functions for "additional" user-requested player reports ---
+
+interface StoredPlayerData extends PlayerData {
+  fetchedAt: Timestamp; // Server timestamp preferably
+  // Add lastUpdatedAt if you allow updates
+}
+
+// Get a specific player's structured report from the "additionalPlayers" subcollection
+export const getAdditionalPlayerReport = async (dateKey: string, playerId: string): Promise<PlayerData | null> => {
+  try {
+    const playerDocRef = doc(db, REPORTS_COLLECTION, dateKey, ADDITIONAL_PLAYERS_SUBCOLLECTION, playerId);
+    const docSnap = await getDoc(playerDocRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data() as StoredPlayerData;
+      console.log(`Additional player report for ${playerId} on ${dateKey} found in Firestore.`);
+      // We might not need to convert fetchedAt to JS Date here if only PlayerData is returned
+      return data as PlayerData; 
+    }
+    console.log(`No additional player report found for ${playerId} on ${dateKey} in Firestore.`);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching additional player report for ${playerId} on ${dateKey}:`, error);
+    return null;
+  }
+};
+
+// Save a specific player's structured report to the "additionalPlayers" subcollection
+export const saveAdditionalPlayerReport = async (dateKey: string, playerId: string, reportData: PlayerData): Promise<void> => {
+  if (!reportData || !reportData.player) {
+    console.warn(`Attempted to save an empty or incomplete additional player report for ${playerId} on ${dateKey}. Skipping.`);
+    return;
+  }
+  try {
+    const playerDocRef = doc(db, REPORTS_COLLECTION, dateKey, ADDITIONAL_PLAYERS_SUBCOLLECTION, playerId);
+    const dataToSave = {
+      ...reportData,
+      fetchedAt: serverTimestamp(), // Use server timestamp for consistency
+    };
+    await setDoc(playerDocRef, dataToSave, { merge: true }); // Merge true if you might update parts later
+    console.log(`Additional player report for ${playerId} on ${dateKey} saved successfully.`);
+  } catch (error) {
+    console.error(`Error saving additional player report for ${playerId} on ${dateKey}:`, error);
+    throw error; // Re-throw to be handled by caller
   }
 };

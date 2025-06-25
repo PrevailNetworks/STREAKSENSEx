@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import type { AnalysisReport } from '../types';
+import type { AnalysisReport, PlayerData } from '../types';
 
 // Access API_KEY from import.meta.env for Vite projects
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -11,12 +11,11 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 const analysisModelName = 'gemini-2.5-flash-preview-04-17';
-const chatModelName = 'gemini-2.5-flash-preview-04-17'; // Can be the same or different
+const chatModelName = 'gemini-2.5-flash-preview-04-17'; 
 
 
 // --- For Analysis Report ---
 const ROLE_BLOCK_CONTENT_ANALYSIS = `You are STREAKSENSE, an expert Major League Baseball (MLB) data analyst and a specialized API. Your sole purpose is to provide a detailed player performance analysis report for the "Beat the Streak" fantasy game. You are precise, data-driven, and provide your output in a strict JSON format.`;
-// ... (rest of the analysis prompt blocks: CONTEXT_BLOCK_CONTENT, RULES_BLOCK_CONTENT, SCHEMA_BLOCK_CONTENT, TASK_BLOCK_CONTENT) remain the same
 const CONTEXT_BLOCK_CONTENT = (date: string, humanReadableDate: string) => `The user requires a comprehensive analysis report for MLB games scheduled on ${date} (formatted as ${humanReadableDate}). The report is used to identify top player picks for the "Beat the Streak" game, where the goal is to select a player who will get at least one hit. Your analysis must be deep, incorporating a wide range of metrics to justify your selections.`;
 
 const RULES_BLOCK_CONTENT = `1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
@@ -131,7 +130,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
   try {
     const result: GenerateContentResponse = await ai.models.generateContent({
         model: analysisModelName,
-        contents: [{ role: "user", parts: [{ text: prompt }] }], // Ensured contents matches structure for model
+        contents: [{ role: "user", parts: [{ text: prompt }] }], 
         config: {
              responseMimeType: "application/json",
              temperature: 0.4,
@@ -142,7 +141,6 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
 
     if (!jsonText) {
       console.error("Received empty or undefined text response from AI for analysis.");
-      // Log more details about the response if text is empty
       if (result && result.candidates && result.candidates.length > 0) {
         console.error("AI Analysis Response Candidate Details:", JSON.stringify(result.candidates[0], null, 2).substring(0,1000));
         if (result.candidates[0].finishReason !== 'STOP') {
@@ -154,14 +152,12 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
       throw new Error("Received empty response from AI for analysis. Check console for details.");
     }
 
-    // Remove markdown fences if present
     const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
     const match = jsonText.match(fenceRegex);
     if (match && match[1]) {
       jsonText = match[1].trim();
     }
     
-    // Additional check for potential Gemini prepended/appended text before/after JSON
     if (!jsonText.startsWith('{') && jsonText.includes('{')) {
         jsonText = jsonText.substring(jsonText.indexOf('{'));
     }
@@ -169,10 +165,9 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
         jsonText = jsonText.substring(0, jsonText.lastIndexOf('}') + 1);
     }
 
-
     try {
       const parsedData: AnalysisReport = JSON.parse(jsonText);
-      if (!parsedData.recommendations || parsedData.recommendations.length === 0) { // Allow for cases where AI might legitimately find 0, though prompt asks for 5
+      if (!parsedData.recommendations || parsedData.recommendations.length === 0) {
         console.warn("Parsed analysis data is missing 'recommendations' or has zero items. Prompt asked for 5.", parsedData);
       } else if (parsedData.recommendations.length !== 5) {
         console.warn(`Parsed analysis data has ${parsedData.recommendations.length} recommendations, but prompt asked for 5.`, parsedData);
@@ -191,9 +186,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
   } catch (error) {
     console.error('Error fetching analysis data from Gemini:', error);
     if (typeof error === 'object' && error !== null) {
-        // Attempt to log more structured error if available (e.g., from Gemini API client)
         if ('message' in error) console.error('Error message:', (error as Error).message);
-        // console.error('Full analysis error object:', JSON.stringify(error, null, 2));
     }
 
     let errorMessage = "Failed to fetch analysis data.";
@@ -211,25 +204,30 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
   }
 };
 
-// --- For Player Research Chat ---
+// --- For Player Research Chat (Text Response) ---
 const PLAYER_RESEARCH_SYSTEM_INSTRUCTION = `You are a helpful and knowledgeable MLB (Major League Baseball) Player Research Assistant.
 Users will ask you questions about MLB players, including stats, recent performance, matchups, strengths, weaknesses, or comparisons.
 Provide concise, accurate, and informative answers based on your knowledge up to your last training data.
 Format your answers clearly. Use Markdown for light formatting like **bolding** key terms or player names, and bullet points for lists if appropriate.
 Do not make unsolicited pick recommendations for "Beat the Streak" or any other game unless the user explicitly asks you to evaluate a player *based on specific criteria they provide for such a game*.
 If you don't know an answer or if it's beyond your capabilities (e.g., real-time scores), say so politely.
-Keep responses focused on the user's query. Be friendly and conversational.`;
+Keep responses focused on the user's query. Be friendly and conversational.
+When providing information about a player, try to include their full team name and MLB ID if you know it. For example, "Shohei Ohtani (Los Angeles Dodgers, mlbId: 660271)".
+`;
 
-export const fetchPlayerResearchResponse = async (userQuery: string): Promise<string> => {
+export const fetchPlayerResearchResponse = async (userQuery: string, playerNameContext?: string): Promise<string> => {
+  let prompt = userQuery;
+  if (playerNameContext) {
+    prompt = `Regarding ${playerNameContext}: ${userQuery}`;
+  }
+
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: chatModelName,
-      contents: [{ role: "user", parts: [{ text: userQuery }] }],
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         systemInstruction: PLAYER_RESEARCH_SYSTEM_INSTRUCTION,
-        temperature: 0.7, // Allow for more conversational and varied responses
-        // Optional: Disable thinking for lower latency in chat, but may reduce quality.
-        // thinkingConfig: { thinkingBudget: 0 } 
+        temperature: 0.7, 
       }
     });
 
@@ -250,7 +248,6 @@ export const fetchPlayerResearchResponse = async (userQuery: string): Promise<st
     console.error('Error fetching player research response from Gemini:', error);
      if (typeof error === 'object' && error !== null) {
         if ('message' in error) console.error('Error message:', (error as Error).message);
-        // console.error('Full chat error object:', JSON.stringify(error, null, 2));
     }
     let friendlyMessage = "I'm having trouble connecting to my knowledge base at the moment. Please try again in a few moments.";
     if (error instanceof Error) {
@@ -261,5 +258,131 @@ export const fetchPlayerResearchResponse = async (userQuery: string): Promise<st
         }
     }
     return friendlyMessage;
+  }
+};
+
+// --- For Structured Player Report from Chat Context ---
+const SINGLE_PLAYER_SCHEMA_BLOCK_CONTENT = (playerName: string, humanReadableDate: string) => `
+You MUST generate a JSON object for the player "${playerName}" for the date ${humanReadableDate} that strictly adheres to the PlayerData structure below.
+All string values must be properly escaped. Provide as much detail as possible for each field based on your knowledge.
+
+{
+  "player": "${playerName}",
+  "mlbId": "Attempt to find and include their official MLB Player ID (e.g., '660271')",
+  "team": "Full Team Name (e.g., 'Los Angeles Dodgers')",
+  "position": "Player's primary position (e.g., 'DH', 'SS', 'OF')",
+  "imageUrl": "Optional: A direct URL to a headshot if mlbId is not found. Prefer mlbId.",
+  "playerSpecificVerdict": "## Deep Dive Analysis for ${playerName}\\n\\n### A. Core Performance & Platoon Dominance\\n(Provide a narrative discussing the player's current season performance, hitting streaks including average during streak, **last game performance (e.g., '2-for-4, HR')**, any notable platoon splits (vs LHP/RHP), and overall offensive profile. Include key supporting stats inline or as a short list.)\\n\\n### B. Statcast Validation\\n(Discuss key Statcast metrics like Hard Hit %, Barrel %, xwOBA, Avg Exit Velocity. Mention percentiles if available.)\\n\\n### C. The Matchup Analysis\\n(Detail the matchup against the likely opposing starting pitcher for ${humanReadableDate}. Include pitcher's full name, **throwing hand (LHP/RHP)**, team (full name), relevant stats like ERA, WHIP, **K/9, BB/9, HR/9, common pitch types**. Discuss **comprehensive BvP history if available: At-bats (AB), Hits (H), Doubles (2B), Triples (3B), Home Runs (HR), RBIs, Walks (BB), Strikeouts (K), and the calculated BA/OBP/SLG.** Analyze Park Factors for the game venue and relevant Weather Conditions.)\\n\\n### D. Models & Final Verdict\\n(Include probabilities or insights from any predictive models you are simulating. Provide a concise final verdict statement summarizing why this player is a strong or weak consideration for a hit on ${humanReadableDate}. Include a brief risk assessment.)",
+  "corePerformance": {
+    "slashLine2025": "Season Slash Line (e.g., '.310/.405/.650')", 
+    "OPS2025": "Season OPS (e.g., '1.055')",
+    "activeHittingStreak": {"games": "Number or 'N/A'", "details": "Details if streak exists (e.g., '5-game hitting streak (9-for-22, .409 AVG)')"},
+    "lastGamePerformance": "Player's performance in their most recent game (e.g., '2-for-4, 1 HR, 2 RBI')"
+  },
+  "statcastValidation": [ 
+      {"label": "Hard Hit %", "value": "Value%", "percentile": 0},
+      {"label": "xwOBA", "value": ".Value", "percentile": 0}
+      // Add other relevant statcast metrics if available
+  ],
+  "matchup": {
+    "pitcher": "Likely Opposing Starting Pitcher's Name or 'TBD'", 
+    "team": "Opposing Pitcher's Full Team Name or 'TBD'", 
+    "ERA": "Pitcher's ERA", "WHIP": "Pitcher's WHIP", "battingAverageAgainst": "Pitcher's BAA",
+    "pitchVulnerabilities": [ {"pitchType": "Sinker", "vulnerabilityScore": 0.0} ] // Optional examples
+  },
+  "synthesis": { 
+    "predictiveModels": [ {"modelName": "STREAKSENSE Simulated", "probability": "Hit Probability%"} ],
+    "BvPHistory": "BvP stats vs likely pitcher (e.g., '5-for-12 (.417), 2 HR vs Webb') or 'N/A'",
+    "parkFactors": {"venue": "Game Venue", "historicalTendency": "e.g., 'Hitter-Friendly'"},
+    "weatherConditions": {"forecast": "e.g., 'Clear, 72°F, Wind 5mph L to R'"},
+    "hitterStrengths": { "Contact": 0, "Power": 0, "Discipline": 0, "AvoidK": 0, "Speed": 0, "Adaptability": 0 },
+    "pitcherProfile": { "Contact": 0, "Power": 0, "Discipline": 0, "AvoidK": 0, "Speed": 0, "Adaptability": 0 }, // Relative to the hitter's perspective
+    "hitterRadarMetrics": { "xBA": 0, "HardHitPct": 0, "AvgExitVelo": 0, "BarrelPct": 0, "ChaseRate": 0, "WhiffPct": 0 }
+  },
+  "finalVerdict": {
+    "compositeHitProbability": 0.0 // Your best estimate of hit probability as a percentage number
+  }
+}
+`;
+
+const constructSinglePlayerReportPrompt = (playerName: string, date: string, humanReadableDate: string): string => {
+  // Simplified Role and Task for single player, focusing on the schema.
+  return `
+<ROLE>
+You are STREAKSENSE, an expert Major League Baseball (MLB) data analyst. Your task is to provide a detailed, structured JSON report for a specific player for a given date.
+</ROLE>
+<CONTEXT>
+The user requires a comprehensive analysis for player "${playerName}" for games on ${date} (${humanReadableDate}).
+This report will be used to evaluate the player's likelihood of getting a hit.
+</CONTEXT>
+<RULES>
+1.  **JSON Only:** Your entire response MUST be a single, valid JSON object matching the PlayerData schema provided. No introductory text, explanations, or markdown.
+2.  **Complete Data Population:** Fill all fields in the PlayerData schema as accurately and completely as possible.
+3.  **MLB ID:** Prioritize finding and including the official MLB Player ID.
+4.  **Full Team Names:** Use full team names.
+5.  **\`playerSpecificVerdict\` Formatting:** Adhere strictly to the Markdown structure detailed in the schema for this field (## Title, ### Subtitles A-D, narrative paragraphs).
+</RULES>
+<SCHEMA>
+${SINGLE_PLAYER_SCHEMA_BLOCK_CONTENT(playerName, humanReadableDate)}
+</SCHEMA>
+<TASK>
+Generate the complete, valid JSON PlayerData report for "${playerName}" for ${humanReadableDate}. Ensure all rules are followed and the schema is matched exactly.
+</TASK>
+`;
+};
+
+export const fetchStructuredReportForPlayer = async (playerName: string, date: string, humanReadableDate: string): Promise<PlayerData | null> => {
+  const prompt = constructSinglePlayerReportPrompt(playerName, date, humanReadableDate);
+  console.log(`Fetching structured report for ${playerName} on ${humanReadableDate}`);
+  try {
+    const result: GenerateContentResponse = await ai.models.generateContent({
+      model: analysisModelName, // Using analysis model for structured JSON
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.5, // Slightly higher for more detailed generation for single player
+      },
+    });
+
+    let jsonText = result.text;
+    if (!jsonText) {
+      console.error(`Received empty response from AI for structured report of ${playerName}.`);
+      // Add more diagnostics if needed, similar to fetchAnalysisForDate
+      if (result && result.candidates && result.candidates.length > 0 && result.candidates[0].finishReason !== 'STOP') {
+        throw new Error(`AI structured report generation for ${playerName} stopped prematurely: ${result.candidates[0].finishReason}`);
+      }
+      return null;
+    }
+
+    const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
+    const match = jsonText.match(fenceRegex);
+    if (match && match[1]) {
+      jsonText = match[1].trim();
+    }
+    if (!jsonText.startsWith('{') && jsonText.includes('{')) {
+        jsonText = jsonText.substring(jsonText.indexOf('{'));
+    }
+    if (!jsonText.endsWith('}') && jsonText.includes('}')) {
+        jsonText = jsonText.substring(0, jsonText.lastIndexOf('}') + 1);
+    }
+    
+    try {
+      const parsedData: PlayerData = JSON.parse(jsonText);
+      // Basic validation
+      if (!parsedData.player || !parsedData.finalVerdict) {
+        console.warn(`Parsed structured report for ${playerName} is missing key fields.`, parsedData);
+        return null;
+      }
+      console.log(`Successfully fetched and parsed structured report for ${playerName}`);
+      return parsedData;
+    } catch (e) {
+      console.error(`Failed to parse JSON for structured report of ${playerName}:`, e);
+      console.error("Problematic JSON string:", jsonText.substring(0, 500) + "...");
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error fetching structured report for ${playerName} from Gemini:`, error);
+    // Handle error similar to fetchAnalysisForDate
+    throw error; // Re-throw to be handled by caller
   }
 };

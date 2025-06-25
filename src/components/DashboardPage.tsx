@@ -1,11 +1,14 @@
 
 import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
-import { PlayerResearchChat } from './PlayerResearchChat'; // New
+import { PlayerResearchChat } from './PlayerResearchChat'; 
 import { FiUser, FiCalendar, FiTrendingUp, FiList, FiMessageSquare, FiUploadCloud, FiSettings, FiLogOut, FiBarChart2 } from 'react-icons/fi';
+import { formatDateForDisplay } from '@/utils/dateUtils'; // Assuming date utils exist
+
 
 interface DashboardPageProps {
   currentUser: User;
+  selectedDate: Date; // Added prop
   onNavigateToAnalytics: () => void;
   onLogout: () => void;
 }
@@ -23,19 +26,31 @@ const DashboardSection: React.FC<{ title: string; icon: React.ReactNode; childre
   </section>
 );
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser, onNavigateToAnalytics, onLogout }) => {
-  const [dailyPick, setDailyPick] = useState<string>('');
-  const [savedPick, setSavedPick] = useState<string | null>(null);
+export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser, selectedDate, onNavigateToAnalytics, onLogout }) => {
+  const [dailyPickInput, setDailyPickInput] = useState<string>(''); // Renamed from dailyPick to avoid confusion
+  const [savedPickDisplay, setSavedPickDisplay] = useState<string | null>(null); // Renamed from savedPick
   const [isResearchChatOpen, setIsResearchChatOpen] = useState<boolean>(false);
 
+  // TODO: Fetch actual saved pick for the day from userService on component mount / date change
+  // useEffect(() => {
+  //   if(currentUser && selectedDate) {
+  //     const dateKey = formatDateForKey(selectedDate);
+  //     getUserDailyPick(currentUser.uid, dateKey).then(pick => {
+  //       if (pick) setSavedPickDisplay(pick.playerName);
+  //       else setSavedPickDisplay(null);
+  //     });
+  //   }
+  // }, [currentUser, selectedDate]);
+
+
   const handleSavePick = () => {
-    // For now, just local state. Later, this will save to Firestore.
-    setSavedPick(dailyPick);
-    // setDailyPick(''); // Optionally clear input
-    alert(`Pick "${dailyPick}" saved for today! (Not really, this is a WIP)`);
+    // This will eventually use userService.saveUserDailyPick
+    // For now, local state update for UI feedback
+    setSavedPickDisplay(dailyPickInput);
+    alert(`Pick "${dailyPickInput}" saved for today! (Mock save)`);
   };
   
-  const todayDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const todayFormattedDate = formatDateForDisplay(selectedDate); // Use selectedDate for consistency
 
   return (
     <div className="min-h-screen bg-[var(--main-bg)] text-[var(--text-primary)] p-4 sm:p-6 lg:p-8">
@@ -62,24 +77,24 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser, onNav
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Daily Pick Section */}
-        <DashboardSection title={`Today's Pick (${todayDate})`} icon={<FiCalendar />}>
+        <DashboardSection title={`Today's Pick (${todayFormattedDate})`} icon={<FiCalendar />}>
           <p>Make your selection for today's "Beat the Streak" game.</p>
           <input
             type="text"
-            value={dailyPick}
-            onChange={(e) => setDailyPick(e.target.value)}
-            placeholder="Enter player name"
+            value={dailyPickInput}
+            onChange={(e) => setDailyPickInput(e.target.value)}
+            placeholder="Enter player name or research via AI"
             className="w-full bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-md p-2.5 text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--primary-glow)] focus:outline-none placeholder:text-[var(--text-secondary)]/70 mt-2"
           />
           <button
             onClick={handleSavePick}
-            disabled={!dailyPick.trim()}
+            disabled={!dailyPickInput.trim()}
             className="w-full mt-3 bg-[var(--primary-glow)] text-black font-semibold py-2.5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save Pick for Today
           </button>
-          {savedPick && <p className="mt-3 text-green-400">Your pick: <strong>{savedPick}</strong></p>}
-          {!savedPick && <p className="mt-3">You haven't made a pick yet for today.</p>}
+          {savedPickDisplay && <p className="mt-3 text-green-400">Your current pick: <strong>{savedPickDisplay}</strong></p>}
+          {!savedPickDisplay && <p className="mt-3">You haven't made a pick yet for today.</p>}
         </DashboardSection>
 
         {/* Player Research Section */}
@@ -123,6 +138,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser, onNav
         <PlayerResearchChat
           isOpen={isResearchChatOpen}
           onClose={() => setIsResearchChatOpen(false)}
+          selectedDate={selectedDate} // Pass selectedDate
         />
       )}
        <footer className="mt-12 text-center text-xs text-[var(--text-secondary)]">

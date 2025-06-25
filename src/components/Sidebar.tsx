@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AnalysisReport, PlayerData, WatchListCautionaryNotesData, HonorableMention } from '../types';
-import { FiChevronRight, FiAlertCircle } from 'react-icons/fi'; 
+import { FiChevronRight, FiAlertCircle, FiCalendar } from 'react-icons/fi'; // Added FiCalendar
 import { AudioPlayer } from './AudioPlayer';
 import { Loader } from './Loader'; // Import the Loader component
 
@@ -82,16 +82,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
           STREAKSENSE
         </h1>
         <div className="flex items-center mt-1">
-            <p className="text-xs text-[var(--text-secondary)] uppercase mr-2">BTS Analysis for</p>
-            <input
-                type="date"
-                id="sidebar-date-picker"
-                value={selectedDate.toISOString().split('T')[0]}
-                max={maxDate}
-                onChange={handleDateInputChange}
-                className="bg-transparent border-0 text-[var(--primary-glow)] p-0 text-xs font-semibold focus:outline-none focus:ring-0 appearance-none"
-                style={{ colorScheme: 'dark' }}
-            />
+            <p className="text-xs text-[var(--text-secondary)] uppercase mr-2">Game Date: </p>
+            <div className="relative flex items-center group"> {/* Wrapper for input and icon */}
+                <input
+                    type="date"
+                    id="sidebar-date-picker"
+                    value={selectedDate.toISOString().split('T')[0]}
+                    max={maxDate}
+                    onChange={handleDateInputChange}
+                    className="bg-transparent border-0 text-[var(--primary-glow)] p-0 text-xs font-semibold focus:outline-none focus:ring-0 appearance-none pr-5 cursor-pointer" // Added pr-5 for icon space and cursor
+                    style={{ colorScheme: 'dark' }}
+                />
+                <FiCalendar className="w-3.5 h-3.5 text-[var(--primary-glow)] opacity-70 group-hover:opacity-100 transition-opacity absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+            </div>
         </div>
       </div>
 
@@ -134,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                             onSelect={() => { /* Watchlist items are not selectable for main display */ }}
                             isSelected={false} 
                             isSelectable={false} 
-                            index={idx + analysisData.recommendations.length}
+                            index={idx + (analysisData.recommendations?.length || 0)}
                         />
                     ))}
                 </ul>

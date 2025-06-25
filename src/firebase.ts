@@ -1,6 +1,5 @@
 // src/firebase.ts
-import { initializeApp, getApp, getApps } from '@firebase/app';
-import type { FirebaseApp } from '@firebase/app';
+import * as firebaseAppModule from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 
@@ -20,11 +19,11 @@ if (!firebaseConfig.apiKey) {
 }
 
 // Initialize Firebase
-let app: FirebaseApp;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+let app: firebaseAppModule.FirebaseApp; // Use the imported module's type for FirebaseApp
+if (!firebaseAppModule.getApps().length) { // Use the imported module's getApps function
+  app = firebaseAppModule.initializeApp(firebaseConfig); // Use the imported module's initializeApp function
 } else {
-  app = getApp();
+  app = firebaseAppModule.getApp(); // Use the imported module's getApp function
 }
 
 const db: Firestore = getFirestore(app);

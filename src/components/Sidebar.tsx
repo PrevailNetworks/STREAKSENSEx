@@ -1,4 +1,4 @@
-import React, { useState } // Added useState
+import React, { useState } from 'react';
 import type { AnalysisReport, PlayerData, WatchListCautionaryNotesData, HonorableMention } from '../types';
 import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser } from 'react-icons/fi'; // Added FiLogIn, FiLogOut, FiUser
 import { AudioPlayer } from './AudioPlayer';

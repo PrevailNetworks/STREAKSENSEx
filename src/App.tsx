@@ -8,22 +8,27 @@ import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore, Firestor
 import type { AnalysisReport, PlayerData } from './types';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useAuth, EMAIL_FOR_SIGN_IN_LINK_KEY } from './contexts/AuthContext';
-import { MobileHeader } from './components/MobileHeader'; // Added
-import { FlyoutMenu } from './components/FlyoutMenu'; // Added
-import { MobilePlayerPicker } from './components/MobilePlayerPicker'; // Added
+import { MobileHeader } from './components/MobileHeader';
+import { FlyoutMenu } from './components/FlyoutMenu';
+import { MobilePlayerPicker } from './components/MobilePlayerPicker';
+import { LandingPage } from './components/LandingPage'; // Added
 
 const STALE_THRESHOLD_HOURS = 4;
-const REFRESH_CUTOFF_UTC_HOUR = 23;
+const REFRESH_CUTOFF_UTC_HOUR = 23; // Refresh if data is stale and current time is before 11 PM UTC
 
 const App: React.FC = () => {
+  const [showLandingPage, setShowLandingPage] = useState<boolean>(true); // Added
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [analysisData, setAnalysisData] = useState<AnalysisReport | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFlyoutOpen, setIsFlyoutOpen] = useState<boolean>(false); // Added for FlyoutMenu
+  const [isFlyoutOpen, setIsFlyoutOpen] = useState<boolean>(false);
 
   const authContext = useAuth();
+
+  const today = new Date(); // Centralized
+  const maxDate = today.toISOString().split('T')[0]; // Centralized
 
   useEffect(() => {
     const link = window.location.href;
@@ -125,28 +130,33 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!authContext.loading) {
+    if (!authContext.loading && !showLandingPage) { // Only load data if not on landing page
         loadData(selectedDate);
     }
-  }, [selectedDate, loadData, authContext.loading]);
+  }, [selectedDate, loadData, authContext.loading, showLandingPage]);
 
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
-    setIsFlyoutOpen(false); // Close flyout when date changes from flyout
+    setIsFlyoutOpen(false); // Close flyout if open when date changes
   };
 
   const handlePlayerSelect = (player: PlayerData) => {
     setSelectedPlayer(player);
-    // Potentially close MobilePlayerPicker's expanded view if it's open
   };
   
   const overallIsLoading = isLoading || authContext.loading;
+
+  if (showLandingPage) {
+    return <LandingPage onEnterApp={() => setShowLandingPage(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-[var(--sidebar-bg)] font-[var(--font-body)] flex flex-col">
       <MobileHeader
         selectedDate={selectedDate}
         onMenuToggle={() => setIsFlyoutOpen(true)}
+        onDateChange={handleDateChange} // Added
+        maxDate={maxDate} // Added
         className="md:hidden sticky top-0 z-30 bg-[var(--sidebar-bg)] shadow-md"
       />
 
@@ -157,7 +167,8 @@ const App: React.FC = () => {
         onDateChange={handleDateChange}
         analysisData={analysisData}
         isLoading={overallIsLoading}
-        className="md:hidden" // Ensures it's part of the mobile layout flow
+        maxDate={maxDate} // Added
+        className="md:hidden" 
       />
 
       <div className="flex flex-row flex-1 overflow-hidden">
@@ -168,7 +179,8 @@ const App: React.FC = () => {
           onPlayerSelect={handlePlayerSelect}
           selectedPlayerId={selectedPlayer?.player}
           isLoading={overallIsLoading}
-          className="hidden md:flex md:flex-col" // Only for desktop
+          maxDate={maxDate} // Added
+          className="hidden md:flex md:flex-col"
         />
 
         <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area">
@@ -181,7 +193,7 @@ const App: React.FC = () => {
           />
 
           <main className={`flex-grow bg-[var(--main-bg)] p-4 sm:p-6 lg:p-8 flex flex-col 
-                           ${selectedPlayer && analysisData ? 'pt-2 md:pt-4' : 'pt-4'}`}> {/* Adjust pt based on picker presence */}
+                           ${selectedPlayer && analysisData ? 'pt-2 md:pt-4' : 'pt-4'}`}>
             {overallIsLoading && (
               <div className="flex flex-col items-center justify-center flex-grow h-full w-full">
                 <Loader message={authContext.loading ? "Authenticating..." : "Analyzing Matchups..."} />

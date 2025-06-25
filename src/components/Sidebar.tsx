@@ -14,7 +14,8 @@ interface SidebarProps {
   onPlayerSelect: (player: PlayerData) => void;
   selectedPlayerId?: string;
   isLoading: boolean;
-  className?: string; // Added className for responsive control
+  maxDate: string; // Added maxDate prop
+  className?: string;
 }
 
 const ImportantNote: React.FC = () => (
@@ -32,9 +33,9 @@ interface RecommendationItemProps {
   onSelect: () => void;
   isSelected: boolean;
   isSelectable: boolean; 
-  index?: number; // Made index optional as it's not always semantically required for display
+  index?: number;
   team?: string; 
-  itemKey?: string; // Explicit key prop
+  itemKey?: string;
 }
 
 export const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, probability, onSelect, isSelected, isSelectable, index, team, itemKey }) => (
@@ -75,6 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onPlayerSelect, 
   selectedPlayerId, 
   isLoading,
+  maxDate, // Use passed maxDate
   className 
 }) => {
   const { currentUser, signOutUser, loading: authLoading } = useAuth(); 
@@ -83,12 +85,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
-      const [year, month, day] = dateValue.split('-').map(Number);
-      onDateChange(new Date(year, month - 1, day));
+      // Dates from input type="date" are yyyy-mm-dd. Need to adjust for local timezone.
+      const dateParts = dateValue.split('-').map(Number);
+      const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+      
+      // Get user's current time to preserve it, avoiding timezone shifts to midnight UTC
+      const userCurrentHours = selectedDate.getHours();
+      const userCurrentMinutes = selectedDate.getMinutes();
+      newSelectedDate.setHours(userCurrentHours, userCurrentMinutes, 0, 0);
+      
+      onDateChange(newSelectedDate);
     }
   };
-  const today = new Date();
-  const maxDate = today.toISOString().split('T')[0];
 
   return (
     <> 
@@ -105,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           type="date"
                           id="sidebar-date-picker"
                           value={selectedDate.toISOString().split('T')[0]}
-                          max={maxDate}
+                          max={maxDate} // Use prop
                           onChange={handleDateInputChange}
                           className="bg-transparent border-0 text-[var(--primary-glow)] p-0 text-xs font-semibold focus:outline-none focus:ring-0 appearance-none pr-5 cursor-pointer"
                           style={{ colorScheme: 'dark' }}
@@ -117,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
         </div>
 
-        <div className="flex-grow overflow-y-auto space-y-6 pr-1 pb-4"> {/* Added pb-4 for bottom padding */}
+        <div className="flex-grow overflow-y-auto space-y-6 pr-1 pb-4">
             <section>
               <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
               {isLoading ? (
@@ -156,7 +164,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   onSelect={() => { /* Watchlist items are not selectable for main display from sidebar */ }}
                                   isSelected={false} 
                                   isSelectable={false} 
-                                  // No index number for watchlist items in sidebar to differentiate
                               />
                           ))}
                       </ul>

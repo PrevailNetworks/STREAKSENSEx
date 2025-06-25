@@ -1,6 +1,7 @@
 
 // src/firebase.ts
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app'; // Changed to named imports
+import { initializeApp, getApps, getApp } from 'firebase/app'; // Changed to named imports for values
+import type { FirebaseApp } from 'firebase/app'; // Import FirebaseApp as a type
 import { getFirestore } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';

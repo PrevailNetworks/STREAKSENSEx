@@ -1,10 +1,8 @@
-
 // src/components/AuthModal.tsx
 import React, { useState, FormEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FiX, FiMail, FiLock, FiLogIn, FiUserPlus, FiSend, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
-
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -117,7 +115,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
                     <input 
                         type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} 
-                        required={view !== 'emailLink'}
+                        required
                         minLength={6}
                         className="w-full bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-md p-2.5 pl-10 text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--primary-glow)] focus:outline-none placeholder:text-[var(--text-secondary)]/50"
                         placeholder="••••••••"

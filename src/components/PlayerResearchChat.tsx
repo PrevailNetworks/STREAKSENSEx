@@ -3,15 +3,15 @@ import React, { useState, FormEvent, useRef, useEffect } from 'react';
 import { FiX, FiSend, FiLoader, FiMessageSquare, FiUser, FiCpu, FiCheckSquare, FiHeart, FiAlertCircle } from 'react-icons/fi';
 import { fetchPlayerResearchResponse, fetchStructuredReportForPlayer } from '@/services/geminiService';
 import { getAdditionalPlayerReport, saveAdditionalPlayerReport } from '@/services/firestoreService';
-import { saveUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, isPlayerFavorite, UserDailyPick } from '@/services/userService';
+import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, isPlayerFavorite } from '@/services/userService'; // Changed saveUserDailyPick to addUserDailyPick
 import { useAuth } from '@/contexts/AuthContext';
-import type { PlayerData } from '@/types';
-import { formatDateForDisplay, formatDateForKey } from '@/utils/dateUtils'; // Assuming date utils exist
+import type { PlayerData, PlayerPickInfo } from '@/types'; // Import PlayerPickInfo
+import { formatDateForDisplay, formatDateForKey } from '@/utils/dateUtils'; 
 
 interface PlayerResearchChatProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedDate: Date; // Pass current analysis date
+  selectedDate: Date; 
 }
 
 interface ChatMessage {
@@ -19,15 +19,14 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   text: string;
   isLoading?: boolean;
-  playerContext?: { // Store potential player name identified from AI response
+  playerContext?: { 
     name: string;
-    mlbId?: string; // If AI provides it
+    mlbId?: string; 
     team?: string;
   };
 }
 
 const extractPlayerNameFromQuery = (query: string): string | undefined => {
-    // Basic extraction, can be improved with NLP or more robust parsing
     const patterns = [
         /how has ([\w\s.-]+) been/i,
         /tell me about ([\w\s.-]+)/i,
@@ -41,26 +40,20 @@ const extractPlayerNameFromQuery = (query: string): string | undefined => {
             return match[1].trim();
         }
     }
-    // Fallback if no specific pattern matched but query seems to be a name
     if (query.split(' ').length <= 3 && query.length > 3) return query.trim();
     return undefined;
 };
 
-// Function to try and extract MLB ID from text like "(mlbId: 123456)"
 const extractMlbIdFromText = (text: string): string | undefined => {
     const match = text.match(/mlbId:\s*(\d+)/i);
     return match ? match[1] : undefined;
 };
 const extractTeamFromText = (text: string, playerName: string): string | undefined => {
-    // Regex to find team names, often in parentheses after player name or mentioned with "plays for"
-    // Example: "Shohei Ohtani (Los Angeles Dodgers)" or "Shohei Ohtani plays for the Los Angeles Dodgers"
     const teamRegex = new RegExp(`(?:${playerName}\\s*\\(([^)]+)\\)|${playerName}\\s*(?:plays for|of the|on the)\\s*(the\\s*)?([^.,\\n]+))`, "i");
     const match = text.match(teamRegex);
     if (match) {
-        // Prefer the explicitly captured group for team if available
         const capturedTeam = match[1] || match[3];
         if (capturedTeam) {
-          // Avoid capturing things like "DH" or other non-team info if in parentheses
           if (capturedTeam.length > 3 && !capturedTeam.match(/^\d+$/) && !capturedTeam.match(/^(LHP|RHP|DH|SS|OF|P|C|1B|2B|3B)$/i)) {
              return capturedTeam.replace(/^the\s*/i, '').trim();
           }
@@ -75,8 +68,8 @@ export const PlayerResearchChat: React.FC<PlayerResearchChatProps> = ({ isOpen, 
   const [currentQuery, setCurrentQuery] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null); // Stores ID of player being actioned
-  const [favoriteStatus, setFavoriteStatus] = useState<Record<string, boolean>>({}); // PlayerId -> isFavorite
+  const [actionLoading, setActionLoading] = useState<string | null>(null); 
+  const [favoriteStatus, setFavoriteStatus] = useState<Record<string, boolean>>({}); 
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { currentUser } = useAuth();
@@ -102,14 +95,13 @@ export const PlayerResearchChat: React.FC<PlayerResearchChatProps> = ({ isOpen, 
       setActionError(null);
       setFavoriteStatus({});
     }
-  }, [isOpen]); // Removed messages.length dependency to avoid re-triggering initial message if user clears chat
+  }, [isOpen]); 
 
   useEffect(() => {
-    // When a new AI message with playerContext arrives, check favorite status
     const lastMessage = messages[messages.length - 1];
     if (currentUser && lastMessage?.sender === 'ai' && lastMessage.playerContext?.name) {
       const playerId = lastMessage.playerContext.mlbId || lastMessage.playerContext.name.toLowerCase().replace(/\s+/g, '-');
-      if (favoriteStatus[playerId] === undefined) { // Check only if not already checked
+      if (favoriteStatus[playerId] === undefined) { 
         isPlayerFavorite(currentUser.uid, playerId).then(isFav => {
           setFavoriteStatus(prev => ({ ...prev, [playerId]: isFav }));
         });
@@ -177,7 +169,7 @@ export const PlayerResearchChat: React.FC<PlayerResearchChatProps> = ({ isOpen, 
     }
 
     const playerId = playerInfo.mlbId || playerInfo.name.toLowerCase().replace(/\s+/g, '-');
-    setActionLoading(playerId);
+    setActionLoading(playerId); // Use playerId for actionLoading state
     setActionError(null);
 
     try {
@@ -191,20 +183,18 @@ export const PlayerResearchChat: React.FC<PlayerResearchChatProps> = ({ isOpen, 
         }
       }
       
-      // Ensure the report has the necessary fields for actions
       if (!structuredReport.player || !structuredReport.team) {
           throw new Error(`Structured report for ${playerInfo.name} is missing essential details.`);
       }
 
-
       if (action === 'pick') {
-        const pickData: Omit<UserDailyPick, 'pickedAt' | 'pickDate'> = {
+        const pickData: Omit<PlayerPickInfo, 'pickedAt' | 'pickDate'> = { // Use PlayerPickInfo
           playerId: playerId,
           playerName: structuredReport.player,
           team: structuredReport.team,
           source: 'researched',
         };
-        await saveUserDailyPick(currentUser.uid, dateKey, pickData);
+        await addUserDailyPick(currentUser.uid, dateKey, pickData); // Changed to addUserDailyPick
         alert(`${structuredReport.player} set as your pick for ${humanReadableDate}!`);
       } else if (action === 'favoriteToggle') {
         const isCurrentlyFavorite = favoriteStatus[playerId];
@@ -284,26 +274,24 @@ export const PlayerResearchChat: React.FC<PlayerResearchChatProps> = ({ isOpen, 
                   {msg.sender === 'user' && <FiUser className="w-4 h-4 mt-0.5 shrink-0" />}
                 </div>
               </div>
-              {/* Action buttons for AI messages with playerContext */}
               {currentUser && msg.sender === 'ai' && msg.playerContext && !msg.isLoading && (
                 <div className="flex justify-start mt-1.5 ml-8 space-x-2">
                   <button
                     onClick={() => handlePlayerAction('pick', msg.playerContext!)}
-                    disabled={!!actionLoading}
+                    disabled={!!actionLoading} // Check generic actionLoading state
                     className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-md flex items-center disabled:opacity-50"
                   >
-                    {actionLoading === (msg.playerContext.mlbId || msg.playerContext.name.toLowerCase().replace(/\s+/g, '-')) && actionLoading === 'pick' ? <FiLoader className="animate-spin mr-1"/> : <FiCheckSquare className="mr-1" />}
-                    Set as Pick
+                    {actionLoading === (msg.playerContext.mlbId || msg.playerContext.name.toLowerCase().replace(/\s+/g, '-')) ? <FiLoader className="animate-spin mr-1"/> : <FiCheckSquare className="mr-1" />} Set as Pick
                   </button>
                   <button
                     onClick={() => handlePlayerAction('favoriteToggle', msg.playerContext!)}
-                    disabled={!!actionLoading}
+                    disabled={!!actionLoading} // Check generic actionLoading state
                     className={`text-xs px-2 py-1 rounded-md flex items-center disabled:opacity-50 
                                 ${favoriteStatus[msg.playerContext.mlbId || msg.playerContext.name.toLowerCase().replace(/\s+/g, '-')] 
                                   ? 'bg-pink-600 hover:bg-pink-700 text-white' 
                                   : 'bg-gray-600 hover:bg-gray-700 text-white'}`}
                   >
-                    {actionLoading === (msg.playerContext.mlbId || msg.playerContext.name.toLowerCase().replace(/\s+/g, '-')) && actionLoading === 'favorite' ? <FiLoader className="animate-spin mr-1"/> : <FiHeart className="mr-1" />}
+                    {actionLoading === (msg.playerContext.mlbId || msg.playerContext.name.toLowerCase().replace(/\s+/g, '-')) ? <FiLoader className="animate-spin mr-1"/> : <FiHeart className="mr-1" />}
                     {favoriteStatus[msg.playerContext.mlbId || msg.playerContext.name.toLowerCase().replace(/\s+/g, '-')] ? 'Unfavorite' : 'Favorite'}
                   </button>
                 </div>

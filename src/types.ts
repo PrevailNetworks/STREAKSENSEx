@@ -124,14 +124,20 @@ export interface ChartDataPoint {
   value: number;
 }
 
-// Added from userService.ts for App.tsx context
-export interface UserDailyPick {
+// Represents a single player pick
+export interface PlayerPickInfo {
   playerId: string;
   playerName: string;
-  team: string; // Make team optional or provide a default if direct input might not have it
-  pickDate: string;
+  team: string;
+  pickDate: string; // YYYY-MM-DD, redundant here if part of UserDailyPicksDocument key, but useful in object
   source: 'recommendation' | 'researched' | 'favorite' | 'direct_input';
   pickedAt: Date; // Use Date for client-side representation
+}
+
+// Represents the document stored at users/{userId}/dailyPicks/{dateKey}
+export interface UserDailyPicksDocument {
+  picks: PlayerPickInfo[]; // Array of 0, 1, or 2 picks
+  lastUpdatedAt: Date; // Firestore Timestamp on server, Date on client
 }
 
 export interface FavoritePlayer {

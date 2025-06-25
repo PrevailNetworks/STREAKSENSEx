@@ -1,76 +1,122 @@
 
 // src/services/userService.ts
 import { db } from '@/firebase';
-import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, Timestamp, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import type { PlayerData } from '@/types'; // Assuming PlayerData might be stored or referenced
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, Timestamp, serverTimestamp, query, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import type { PlayerData, PlayerPickInfo, UserDailyPicksDocument, FavoritePlayer } from '@/types';
 
-// --- User Daily Picks ---
 const DAILY_PICKS_SUBCOLLECTION = 'dailyPicks';
 
-export interface UserDailyPick {
-  playerId: string; // mlbId or unique player name
-  playerName: string;
-  team: string;
-  pickDate: string; // YYYY-MM-DD format
-  source: 'recommendation' | 'researched' | 'favorite' | 'direct_input'; // Where the pick came from
-  pickedAt: Timestamp | Date; // Allow Date for optimistic updates, server will convert
-  // Optional: store full PlayerData if needed, or just key info
-  // playerData?: PlayerData; 
-}
-
-export const saveUserDailyPick = async (userId: string, dateKey: string, pickData: Omit<UserDailyPick, 'pickedAt' | 'pickDate'>): Promise<void> => {
-  if (!userId || !dateKey || !pickData.playerId) {
-    console.error("Missing userId, dateKey, or playerId for saving daily pick.");
-    throw new Error("Missing required information to save pick.");
+export const addUserDailyPick = async (userId: string, dateKey: string, newPickData: Omit<PlayerPickInfo, 'pickedAt' | 'pickDate'>): Promise<{success: boolean, message: string, picks?: PlayerPickInfo[]}> => {
+  if (!userId || !dateKey || !newPickData.playerId) {
+    return { success: false, message: "Missing required information to save pick." };
   }
   try {
     const pickDocRef = doc(db, 'users', userId, DAILY_PICKS_SUBCOLLECTION, dateKey);
-    const dataToSave: Omit<UserDailyPick, 'pickedAt'> & { pickedAt: Timestamp } = {
-      ...pickData,
+    const docSnap = await getDoc(pickDocRef);
+
+    const pickToAdd: PlayerPickInfo = {
+      ...newPickData,
       pickDate: dateKey,
-      pickedAt: serverTimestamp() as Timestamp, // Firestore will set this
+      pickedAt: new Date(), // Client-side timestamp for immediate use, server will set its own
     };
-    // For "Beat the Streak", usually one pick. setDoc will overwrite if document for dateKey exists.
-    await setDoc(pickDocRef, dataToSave); 
-    console.log(`User ${userId}'s pick for ${dateKey} (${pickData.playerName}) saved.`);
+
+    if (docSnap.exists()) {
+      const existingData = docSnap.data() as UserDailyPicksDocument;
+      const existingPicks = existingData.picks || [];
+
+      if (existingPicks.length >= 2) {
+        return { success: false, message: "You already have two picks for this date. Remove one first.", picks: existingPicks };
+      }
+      if (existingPicks.some(p => p.playerId === pickToAdd.playerId)) {
+        return { success: false, message: `${pickToAdd.playerName} is already one of your picks.`, picks: existingPicks };
+      }
+      
+      const updatedPicks = [...existingPicks, pickToAdd];
+      await updateDoc(pickDocRef, {
+        picks: updatedPicks,
+        lastUpdatedAt: serverTimestamp(),
+      });
+      console.log(`User ${userId}'s pick for ${dateKey} (${newPickData.playerName}) added. Total picks: ${updatedPicks.length}`);
+      return { success: true, message: `${newPickData.playerName} added as pick ${updatedPicks.length}.`, picks: updatedPicks };
+    } else {
+      // No existing document, create it with the first pick
+      const newDocument: UserDailyPicksDocument = {
+        picks: [pickToAdd],
+        lastUpdatedAt: new Date(), // serverTimestamp() will apply on write
+      };
+      await setDoc(pickDocRef, {
+        ...newDocument,
+        lastUpdatedAt: serverTimestamp(),
+      });
+      console.log(`User ${userId}'s first pick for ${dateKey} (${newPickData.playerName}) saved.`);
+      return { success: true, message: `${newPickData.playerName} added as pick 1.`, picks: [pickToAdd]};
+    }
   } catch (error) {
-    console.error(`Error saving daily pick for user ${userId} on ${dateKey}:`, error);
-    throw error;
+    console.error(`Error adding daily pick for user ${userId} on ${dateKey}:`, error);
+    return { success: false, message: `Error adding pick: ${error instanceof Error ? error.message : "Unknown error"}` };
   }
 };
 
-export const getUserDailyPick = async (userId: string, dateKey: string): Promise<UserDailyPick | null> => {
+export const getUserDailyPicks = async (userId: string, dateKey: string): Promise<UserDailyPicksDocument | null> => {
   if (!userId || !dateKey) return null;
   try {
     const pickDocRef = doc(db, 'users', userId, DAILY_PICKS_SUBCOLLECTION, dateKey);
     const docSnap = await getDoc(pickDocRef);
     if (docSnap.exists()) {
-      // Convert Firestore Timestamp to JS Date if needed for client-side use
-      const data = docSnap.data() as UserDailyPick;
-      if (data.pickedAt instanceof Timestamp) {
-        data.pickedAt = data.pickedAt.toDate();
+      const data = docSnap.data() as UserDailyPicksDocument;
+      // Convert Firestore Timestamps to JS Dates
+      if (data.lastUpdatedAt instanceof Timestamp) {
+        data.lastUpdatedAt = data.lastUpdatedAt.toDate();
       }
+      data.picks.forEach(pick => {
+        if (pick.pickedAt instanceof Timestamp) {
+          pick.pickedAt = pick.pickedAt.toDate();
+        }
+      });
       return data;
     }
     return null;
   } catch (error) {
-    console.error(`Error fetching daily pick for user ${userId} on ${dateKey}:`, error);
+    console.error(`Error fetching daily picks for user ${userId} on ${dateKey}:`, error);
     return null;
   }
 };
 
-export const removeUserDailyPick = async (userId: string, dateKey: string): Promise<void> => {
-  if (!userId || !dateKey) {
-    console.error("Missing userId or dateKey for removing daily pick.");
-    throw new Error("Missing required information to remove pick.");
+export const removeUserDailyPick = async (userId: string, dateKey: string, playerIdToRemove: string): Promise<{success: boolean, message: string, picks?: PlayerPickInfo[]}> => {
+  if (!userId || !dateKey || !playerIdToRemove) {
+    return { success: false, message: "Missing required information to remove pick." };
   }
   try {
     const pickDocRef = doc(db, 'users', userId, DAILY_PICKS_SUBCOLLECTION, dateKey);
-    await deleteDoc(pickDocRef);
-    console.log(`User ${userId}'s pick for ${dateKey} removed.`);
+    const docSnap = await getDoc(pickDocRef);
+
+    if (docSnap.exists()) {
+      const existingData = docSnap.data() as UserDailyPicksDocument;
+      const updatedPicks = existingData.picks.filter(p => p.playerId !== playerIdToRemove);
+
+      if (updatedPicks.length === existingData.picks.length) {
+         return { success: false, message: "Pick not found.", picks: existingData.picks };
+      }
+
+      if (updatedPicks.length === 0) {
+        // If all picks are removed, delete the document for that date
+        await deleteDoc(pickDocRef);
+        console.log(`User ${userId}'s pick document for ${dateKey} removed as all picks deleted.`);
+        return { success: true, message: "Pick removed. No picks remaining for this date.", picks: [] };
+      } else {
+        await updateDoc(pickDocRef, {
+          picks: updatedPicks,
+          lastUpdatedAt: serverTimestamp(),
+        });
+        console.log(`User ${userId}'s pick (${playerIdToRemove}) for ${dateKey} removed.`);
+        return { success: true, message: "Pick removed.", picks: updatedPicks };
+      }
+    } else {
+      return { success: false, message: "No picks found for this date to remove." };
+    }
   } catch (error) {
     console.error(`Error removing daily pick for user ${userId} on ${dateKey}:`, error);
-    throw error;
+    return { success: false, message: `Error removing pick: ${error instanceof Error ? error.message : "Unknown error"}` };
   }
 };
 
@@ -118,7 +164,7 @@ export const removePlayerFromFavorites = async (userId: string, playerId: string
     const favoriteDocRef = doc(db, 'users', userId, FAVORITE_PLAYERS_SUBCOLLECTION, playerId);
     await deleteDoc(favoriteDocRef);
     console.log(`Player ${playerId} removed from user ${userId}'s favorites.`);
-  } catch (error) { // Corrected: removed trailing underscore
+  } catch (error) {
     console.error(`Error removing player ${playerId} from favorites for user ${userId}:`, error);
     throw error;
   }
@@ -131,12 +177,12 @@ export const getUserFavoritePlayers = async (userId: string): Promise<FavoritePl
     const q = query(favoritesColRef, orderBy('addedAt', 'desc')); 
     const querySnapshot = await getDocs(q);
     const favorites: FavoritePlayer[] = [];
-    querySnapshot.forEach((doc) => {
-      const data = doc.data() as FavoritePlayer;
+    querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap for clarity
+      const data = docSnap.data() as FavoritePlayer;
       if (data.addedAt instanceof Timestamp) {
         data.addedAt = data.addedAt.toDate();
       }
-      favorites.push({ ...data, playerId: doc.id });
+      favorites.push({ ...data, playerId: docSnap.id });
     });
     return favorites;
   } catch (error) {

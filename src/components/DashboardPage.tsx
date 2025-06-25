@@ -1,21 +1,20 @@
 
-
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, useCallback } from 'react'; 
 import type { User } from 'firebase/auth';
-import { FiUser, FiCalendar, FiTrendingUp, FiList, FiMessageSquare, FiUploadCloud, FiSettings, FiLogOut, FiBarChart2, FiEdit3, FiEye, FiHeart, FiLoader } from 'react-icons/fi';
+import { FiUser, FiCalendar, FiTrendingUp, FiList, FiMessageSquare, FiUploadCloud, FiSettings, FiLogOut, FiBarChart2, FiEdit3, FiEye, FiHeart, FiLoader, FiXCircle, FiPlusCircle } from 'react-icons/fi';
 import { formatDateForDisplay, formatDateForKey } from '@/utils/dateUtils';
-import { getUserDailyPick, saveUserDailyPick, UserDailyPick, FavoritePlayer, getUserFavoritePlayers, removeUserDailyPick as removePickFromDbService } from '@/services/userService'; 
+import { getUserDailyPicks, addUserDailyPick, PlayerPickInfo, FavoritePlayer, getUserFavoritePlayers, removeUserDailyPick as removePickService, UserDailyPicksDocument } from '@/services/userService'; 
 import type { PlayerData } from '@/types';
-import { Loader } from '@/components/Loader'; // Added import for Loader
+import { Loader } from '@/components/Loader'; 
 
 
 interface DashboardPageProps {
   currentUser: User;
-  selectedDate: Date; // This is the date context for the dashboard
+  selectedDate: Date; 
   onViewPlayerAnalytics: (playerInfo: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, date: Date) => Promise<void>;
   onLogout: () => void;
   onOpenResearchChat: () => void;
-  favoritePlayers: FavoritePlayer[]; // Pass full FavoritePlayer objects for display
+  favoritePlayers: FavoritePlayer[]; 
   onToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
 }
 
@@ -38,25 +37,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     onViewPlayerAnalytics, 
     onLogout, 
     onOpenResearchChat,
-    // favoritePlayers: initialFavoritePlayers, // Renamed to avoid confusion with fetched list
     onToggleFavorite 
 }) => {
   const [dailyPickInput, setDailyPickInput] = useState<string>('');
-  const [currentDailyPick, setCurrentDailyPick] = useState<UserDailyPick | null>(null);
+  const [currentPicksDoc, setCurrentPicksDoc] = useState<UserDailyPicksDocument | null>(null);
   const [pickLoading, setPickLoading] = useState<boolean>(true);
   const [favoritesList, setFavoritesList] = useState<FavoritePlayer[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState<boolean>(true);
 
-
-  useEffect(() => {
+  const fetchPicks = useCallback(() => {
     if(currentUser && selectedDate) {
       setPickLoading(true);
       const dateKey = formatDateForKey(selectedDate);
-      getUserDailyPick(currentUser.uid, dateKey).then(pick => {
-        setCurrentDailyPick(pick);
+      getUserDailyPicks(currentUser.uid, dateKey).then(doc => {
+        setCurrentPicksDoc(doc);
       }).finally(() => setPickLoading(false));
     }
   }, [currentUser, selectedDate]);
+
+  useEffect(() => {
+    fetchPicks();
+  }, [fetchPicks]);
 
   useEffect(() => {
     if (currentUser) {
@@ -67,22 +68,34 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   }, [currentUser]);
 
-
-  const handleSavePick = async () => {
+  const handleSavePickFromInput = async () => {
     if (!dailyPickInput.trim() || !currentUser) return;
+    
+    const currentPicksArray = currentPicksDoc?.picks || [];
+    if (currentPicksArray.length >= 2) {
+        alert("You already have two picks. Please remove one first.");
+        return;
+    }
+     if (currentPicksArray.some(p => p.playerName.toLowerCase() === dailyPickInput.trim().toLowerCase())) {
+      alert("This player is already one of your picks.");
+      return;
+    }
+
     setPickLoading(true);
     const dateKey = formatDateForKey(selectedDate);
-    const pickToSave: Omit<UserDailyPick, 'pickedAt' | 'pickDate'> = {
-        playerId: dailyPickInput.trim().toLowerCase().replace(/\s+/g, '-'), // Basic ID generation
+    const pickToSave: Omit<PlayerPickInfo, 'pickedAt' | 'pickDate'> = {
+        playerId: dailyPickInput.trim().toLowerCase().replace(/\s+/g, '-'), 
         playerName: dailyPickInput.trim(),
-        team: "Team TBD", // Ideal: use a search to get full player data first
-        source: 'researched', 
+        team: "Team TBD", 
+        source: 'direct_input', 
     };
     try {
-        await saveUserDailyPick(currentUser.uid, dateKey, pickToSave);
-        setCurrentDailyPick({ ...pickToSave, pickDate: dateKey, pickedAt: new Date() } as UserDailyPick); // Optimistic update
-        alert(`Pick "${dailyPickInput.trim()}" saved for ${formatDateForDisplay(selectedDate)}!`);
-        setDailyPickInput(''); 
+        const result = await addUserDailyPick(currentUser.uid, dateKey, pickToSave);
+        alert(result.message);
+        if (result.success) {
+          fetchPicks(); // Refresh picks from DB
+          setDailyPickInput(''); 
+        }
     } catch (error) {
         console.error("Error saving pick from dashboard:", error);
         alert("Failed to save pick. Please try again.");
@@ -91,40 +104,40 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   };
 
-  const handleChangePick = async () => {
-    if (!currentUser || !currentDailyPick) return;
+  const handleRemovePick = async (playerIdToRemove: string) => {
+    if (!currentUser) return;
     setPickLoading(true);
+    const dateKey = formatDateForKey(selectedDate);
     try {
-      await removePickFromDbService(currentUser.uid, currentDailyPick.pickDate);
-      setCurrentDailyPick(null);
-      setDailyPickInput(''); // Clear input if user wants to enter new one
-      alert("Your pick has been cleared. You can now make a new selection.");
+      const result = await removePickService(currentUser.uid, dateKey, playerIdToRemove);
+      alert(result.message);
+      if (result.success) {
+        fetchPicks(); // Refresh picks from DB
+      }
     } catch (error) {
-      console.error("Error changing pick:", error);
-      alert("Failed to change pick. Please try again.");
+      console.error("Error removing pick:", error);
+      alert("Failed to remove pick. Please try again.");
     } finally {
       setPickLoading(false);
     }
   };
   
-  const handleViewPickAnalysis = () => {
-    if (currentDailyPick) {
-      onViewPlayerAnalytics(
-        { player: currentDailyPick.playerName, team: currentDailyPick.team, mlbId: currentDailyPick.playerId.includes('-') ? undefined : currentDailyPick.playerId },
-        selectedDate
-      );
-    }
+  const handleViewPickAnalysis = (pick: PlayerPickInfo) => {
+    onViewPlayerAnalytics(
+      { player: pick.playerName, team: pick.team, mlbId: pick.playerId.includes('-') ? undefined : pick.playerId },
+      selectedDate
+    );
   };
   
   const handleViewFavoriteAnalysis = (fav: FavoritePlayer) => {
      onViewPlayerAnalytics(
         { player: fav.playerName, team: fav.team, mlbId: fav.mlbId },
-        selectedDate // Use dashboard's current date for analysis
+        selectedDate 
      );
   };
 
-
   const dashboardDateFormatted = formatDateForDisplay(selectedDate);
+  const picksForDay = currentPicksDoc?.picks || [];
 
   return (
     <div className="min-h-screen bg-[var(--main-bg)] text-[var(--text-primary)] p-4 sm:p-6 lg:p-8">
@@ -135,7 +148,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
         <div className="flex items-center space-x-3 mt-4 sm:mt-0">
              <button
-                onClick={() => onViewPlayerAnalytics({player: '', team: '', mlbId: undefined}, selectedDate)} // Simplistic way to trigger analytics view
+                onClick={() => onViewPlayerAnalytics({player: '', team: '', mlbId: undefined}, selectedDate)} 
                 className="text-xs sm:text-sm bg-[var(--primary-glow)] text-black font-semibold py-2 px-4 rounded-md hover:opacity-90 transition-opacity flex items-center"
             >
                <FiBarChart2 className="mr-2"/> View General Analysis
@@ -150,45 +163,60 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <DashboardSection title={`Today's Pick (${dashboardDateFormatted})`} icon={<FiCalendar />} className="md:col-span-2">
-          {pickLoading ? (
-            <div className="flex justify-center items-center py-4"><Loader message="Loading pick..."/></div>
-          ) : currentDailyPick ? (
-            <div className="space-y-3">
-              <p>Your current pick: <strong className="text-[var(--primary-glow)]">{currentDailyPick.playerName}</strong> ({currentDailyPick.team || 'N/A'})</p>
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleViewPickAnalysis}
-                  className="flex-1 bg-blue-500 text-white font-semibold py-2 px-3 rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center text-xs"
-                >
-                  <FiEye className="mr-2"/> View Analysis
-                </button>
-                <button
-                  onClick={handleChangePick}
-                  className="flex-1 bg-gray-600 text-white font-semibold py-2 px-3 rounded-md hover:bg-gray-700 transition-colors flex items-center justify-center text-xs"
-                >
-                  <FiEdit3 className="mr-2"/> Change Pick
-                </button>
-              </div>
-            </div>
+        <DashboardSection title={`Today's Picks (${dashboardDateFormatted})`} icon={<FiCalendar />} className="md:col-span-2">
+          {pickLoading && !currentPicksDoc ? (
+            <div className="flex justify-center items-center py-4"><Loader message="Loading picks..."/></div>
           ) : (
-            <>
-              <p>Make your selection for today's "Beat the Streak" game.</p>
-              <input
-                type="text"
-                value={dailyPickInput}
-                onChange={(e) => setDailyPickInput(e.target.value)}
-                placeholder="Enter player name (or use Research AI)"
-                className="w-full bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-md p-2.5 text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--primary-glow)] focus:outline-none placeholder:text-[var(--text-secondary)]/70 mt-2"
-              />
-              <button
-                onClick={handleSavePick}
-                disabled={!dailyPickInput.trim() || pickLoading}
-                className="w-full mt-3 bg-[var(--primary-glow)] text-black font-semibold py-2.5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Save Pick for Today
-              </button>
-            </>
+            <div className="space-y-4">
+              {picksForDay.length > 0 ? (
+                picksForDay.map((pick, index) => (
+                  <div key={pick.playerId} className="p-3 bg-[var(--sidebar-bg)] rounded-md border border-[var(--border-color)]">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-xs text-[var(--text-secondary)]">Pick {index + 1}</span>
+                        <p className="font-semibold text-[var(--primary-glow)]">{pick.playerName} <span className="text-xs text-[var(--text-secondary)]">({pick.team || 'N/A'})</span></p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewPickAnalysis(pick)}
+                          className="p-1.5 text-blue-400 hover:text-blue-300 transition-colors" title="View Analysis"
+                        > <FiEye size={16}/> </button>
+                        <button
+                          onClick={() => handleRemovePick(pick.playerId)}
+                          disabled={pickLoading}
+                          className="p-1.5 text-red-400 hover:text-red-300 transition-colors disabled:opacity-50" title="Remove Pick"
+                        > {pickLoading ? <FiLoader className="animate-spin w-4 h-4"/> : <FiXCircle size={16}/>} </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p>No picks made for today yet.</p>
+              )}
+
+              {picksForDay.length < 2 && (
+                <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+                  <h4 className="text-sm font-semibold mb-2 text-[var(--text-primary)]">Add a Pick:</h4>
+                  <input
+                    type="text"
+                    value={dailyPickInput}
+                    onChange={(e) => setDailyPickInput(e.target.value)}
+                    placeholder="Enter player name (or use Research AI / Quick Add)"
+                    className="w-full bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-md p-2.5 text-[var(--text-primary)] focus:ring-1 focus:ring-[var(--primary-glow)] focus:outline-none placeholder:text-[var(--text-secondary)]/70"
+                  />
+                  <button
+                    onClick={handleSavePickFromInput}
+                    disabled={!dailyPickInput.trim() || pickLoading}
+                    className="w-full mt-3 bg-[var(--primary-glow)] text-black font-semibold py-2.5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {pickLoading ? <FiLoader className="animate-spin mr-2"/> : <FiPlusCircle className="mr-2"/>} Add Pick
+                  </button>
+                </div>
+              )}
+               {picksForDay.length === 2 && (
+                 <p className="mt-3 text-sm text-green-400">You have selected two picks for today!</p>
+               )}
+            </div>
           )}
         </DashboardSection>
 

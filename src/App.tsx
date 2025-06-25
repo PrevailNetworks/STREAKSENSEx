@@ -1,13 +1,14 @@
 
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnalyticsContextualPanel } from '@/components/AnalyticsContextualPanel';
 import { MainDisplay } from '@/components/MainDisplay';
 import { Loader } from '@/components/Loader';
 import { fetchAnalysisForDate, fetchStructuredReportForPlayer } from './services/geminiService';
 import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore, FirestoreReportWithTimestamp, getAdditionalPlayerReport, saveAdditionalPlayerReport } from './services/firestoreService';
-import { saveUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, getUserFavoritePlayers, FavoritePlayer, getUserDailyPick, removeUserDailyPick as removeUserPickFromDb } from './services/userService'; // Added getUserDailyPick, removeUserDailyPick
-import type { AnalysisReport, PlayerData, UserDailyPick } from './types'; // Added UserDailyPick
+import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, getUserFavoritePlayers, FavoritePlayer, getUserDailyPicks, removeUserDailyPick as removePickService } from './services/userService';
+import type { AnalysisReport, PlayerData, PlayerPickInfo, UserDailyPicksDocument } from './types';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useAuth, EMAIL_FOR_SIGN_IN_LINK_KEY } from './contexts/AuthContext';
 import { MobileHeader } from './components/MobileHeader';
@@ -282,22 +283,31 @@ const App: React.FC = () => {
     if (!currentUser) { openAuthModal(currentView); return; }
     const dateKey = formatDateForKey(selectedDate);
     const humanReadable = formatDateForDisplay(selectedDate);
+
     const fullReport = await ensureStructuredReport(playerData, dateKey, humanReadable);
-    if (!fullReport) { alert(`Could not retrieve full data for ${playerData.player} to set pick.`); return; }
+    if (!fullReport) { 
+      alert(`Could not retrieve full data for ${playerData.player} to set pick.`); 
+      return; 
+    }
+
+    const pickInfoToAdd: Omit<PlayerPickInfo, 'pickedAt' | 'pickDate'> = {
+      playerId: fullReport.mlbId || fullReport.player.toLowerCase().replace(/\s+/g, '-'),
+      playerName: fullReport.player,
+      team: fullReport.team,
+      source: 'researched', // This source can be refined based on context if needed
+    };
+
     try {
-      await saveUserDailyPick(currentUser.uid, dateKey, {
-        playerId: fullReport.mlbId || fullReport.player.toLowerCase().replace(/\s+/g, '-'),
-        playerName: fullReport.player,
-        team: fullReport.team, // Ensure team is part of PlayerData / fullReport
-        source: 'researched', 
-      });
-      alert(`${fullReport.player} set as your pick for ${humanReadable}.`);
-      // Potentially refresh dashboard's displayed pick if currentView is dashboard
-      if (currentView === 'dashboard') {
-        // This will be handled by DashboardPage's own useEffect for fetching picks
-      }
-    } catch (e) { console.error("Error setting pick:", e); alert(`Failed to set pick for ${fullReport.player}.`); }
+      const result = await addUserDailyPick(currentUser.uid, dateKey, pickInfoToAdd);
+      alert(result.message);
+      // TODO: Optionally, refresh dashboard's displayed pick if currentView is 'dashboard'
+      // This will typically be handled by DashboardPage's own useEffect for fetching picks.
+    } catch (e) { 
+      console.error("Error setting pick:", e); 
+      alert(`Failed to set pick for ${fullReport.player}.`); 
+    }
   };
+
 
   const handleToggleFavorite = async (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => {
     if (!currentUser) { openAuthModal(currentView); return; }
@@ -334,19 +344,17 @@ const App: React.FC = () => {
   const handleViewPlayerAnalytics = async (playerInfo: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, dateForAnalysis: Date) => {
     const dateKey = formatDateForKey(dateForAnalysis);
     const humanReadable = formatDateForDisplay(dateForAnalysis);
-    setIsLoading(true); // Show loader while preparing analytics view
+    setIsLoading(true); 
     
-    // Ensure analysis data for the target date is loaded, if not already
     if (!analysisData || formatDateForKey(selectedDate) !== dateKey) {
-        await loadData(dateForAnalysis); // This will set analysisData and potentially an initial selectedPlayer
+        await loadData(dateForAnalysis); 
     }
     
-    // Then ensure the specific player's report is available and set them as selected
     const fullReport = await ensureStructuredReport(playerInfo, dateKey, humanReadable);
     
     if (fullReport) {
         setSelectedPlayer(fullReport);
-        setSelectedDate(dateForAnalysis); // Ensure App's selectedDate matches
+        setSelectedDate(dateForAnalysis); 
         setCurrentView('analytics');
     } else {
         alert(`Could not load analysis for ${playerInfo.player}.`);
@@ -416,18 +424,12 @@ const App: React.FC = () => {
           {currentView === 'dashboard' && currentUser && (
             <DashboardPage
               currentUser={currentUser}
-              selectedDate={selectedDate} // Dashboard usually shows "today"
-              onViewPlayerAnalytics={handleViewPlayerAnalytics} // Pass new handler
+              selectedDate={selectedDate} 
+              onViewPlayerAnalytics={handleViewPlayerAnalytics} 
               onLogout={async () => { await signOutUser(); setCurrentView('landing');}}
               onOpenResearchChat={() => setIsResearchChatOpen(true)}
-              favoritePlayers={Object.entries(favoritePlayersMap)
-                .filter(([, isFav]) => isFav)
-                // This requires fetching full FavoritePlayer objects for display
-                // For now, this prop will need to be adjusted or DashboardPage fetches them.
-                // Placeholder: DashboardPage will fetch its own list of FavoritePlayer objects.
-                .map(([id]) => ({playerId: id, playerName: 'Loading...', team: '', addedAt: new Date()}))
-              }
-              onToggleFavorite={handleToggleFavorite} // Pass down for fav list management
+              favoritePlayers={[]} // DashboardPage fetches its own favorite players list
+              onToggleFavorite={handleToggleFavorite} 
             />
           )}
 

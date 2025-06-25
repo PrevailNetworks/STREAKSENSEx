@@ -66,10 +66,11 @@ const PITCHER_ARSENAL_COLORS = ['#a3e635', '#84cc16', '#6ca112', '#4d7c0f', '#36
 const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, size = "w-16 h-16 sm:w-20 sm:h-20" }) => {
   const [imageError, setImageError] = useState(false);
   const initials = player.player.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const imageKey = player.mlbId || player.imageUrl || player.player; // Unique key for re-render
 
   useEffect(() => {
-    setImageError(false); // Reset error state when player changes
-  }, [player.mlbId, player.imageUrl]);
+    setImageError(false); // Reset error state when player image source changes
+  }, [imageKey]);
 
   const handleImageError = () => {
     setImageError(true);
@@ -80,16 +81,14 @@ const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, 
   if (player.mlbId && !imageError) {
     imageUrlToLoad = `https://img.mlbstatic.com/mlb-photos/image/upload/w_213,d_people:generic:headshot:silo:current.png,q_auto:best,f_auto/v1/people/${player.mlbId}/headshot/67/current`;
   } else if (player.imageUrl && !imageError) {
-    // Only use player.imageUrl if mlbId is not available OR if mlbId attempt previously failed (though imageError should handle this)
-    // This condition ensures mlbId is prioritized.
     if (!player.mlbId) {
         imageUrlToLoad = player.imageUrl;
     }
   }
   
-  // If after checking mlbId and imageUrl, and considering imageError, we have a URL:
   if (imageUrlToLoad && !imageError) {
     return <img 
+             key={imageKey} // Add key here
              src={imageUrlToLoad} 
              alt={player.player} 
              className={`${size} rounded-full object-cover mr-4 border-2 border-[var(--border-color)] shadow-md`}
@@ -97,9 +96,9 @@ const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, 
            />;
   }
 
-  // Fallback to initials
   return (
-    <div className={`${size} rounded-full bg-[var(--card-bg)] border-2 border-[var(--border-color)] flex items-center justify-center text-[var(--primary-glow)] font-bold text-xl sm:text-2xl mr-4 shadow-md`}>
+    <div key={`${imageKey}-initials`} // Add key here
+      className={`${size} rounded-full bg-[var(--card-bg)] border-2 border-[var(--border-color)] flex items-center justify-center text-[var(--primary-glow)] font-bold text-xl sm:text-2xl mr-4 shadow-md`}>
       {initials || <FiUser size={Math.floor(parseInt(size.split('-')[1] || '16') / 2) || 24} />}
     </div>
   );
@@ -174,7 +173,7 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
                         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={hitterAnalysisRadarData}>
                             <PolarGrid stroke="var(--border-color)" />
                             <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-                            <PolarRadiusAxis angle={0} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
                             <Radar name={player.player} dataKey="value" stroke="var(--primary-glow)" fill="var(--primary-glow)" fillOpacity={0.7} />
                             <RechartsTooltip 
                                 contentStyle={{backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '12px'}}
@@ -219,7 +218,7 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
                     <RadarChart cx="50%" cy="50%" outerRadius="70%" data={hitterVsPitcherRadarData}>
                       <PolarGrid stroke="var(--border-color)" />
                       <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} />
-                      <PolarRadiusAxis angle={0} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}/>
                       <Radar name={player.player} dataKey={player.player} stroke="var(--primary-glow)" fill="var(--primary-glow)" fillOpacity={0.6} />
                       <Radar name={matchup.pitcher} dataKey={matchup.pitcher} stroke="#ff4d4d" fill="#ff4d4d" fillOpacity={0.5} />
                       <Legend wrapperStyle={{fontSize: "10px", paddingTop: "10px"}}/>

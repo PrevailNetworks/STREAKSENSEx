@@ -1,11 +1,11 @@
+
 import React, { useState } from 'react';
 import type { AnalysisReport, PlayerData, HonorableMention } from '../types';
-import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser } from 'react-icons/fi'; // Added FiUser
+import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser } from 'react-icons/fi';
 import { AudioPlayer } from './AudioPlayer';
 import { Loader } from './Loader'; 
 import { useAuth } from '@/contexts/AuthContext'; 
 import { AuthModal } from './AuthModal'; 
-
 
 interface SidebarProps {
   selectedDate: Date;
@@ -14,10 +14,11 @@ interface SidebarProps {
   onPlayerSelect: (player: PlayerData) => void;
   selectedPlayerId?: string;
   isLoading: boolean;
+  className?: string; // Added className for responsive control
 }
 
 const ImportantNote: React.FC = () => (
-  <div className="bg-blue-900/30 text-blue-300 p-3 rounded-md border border-blue-700 text-xs mt-auto"> {/* Added mt-auto here to push to bottom if it's the last main element */}
+  <div className="bg-blue-900/30 text-blue-300 p-3 rounded-md border border-blue-700 text-xs mt-auto">
     <p className="flex items-start">
       <FiAlertCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
       <span><strong>Important:</strong> Always confirm players are in the final starting lineup on MLB.com before making your selection.</span>
@@ -31,12 +32,14 @@ interface RecommendationItemProps {
   onSelect: () => void;
   isSelected: boolean;
   isSelectable: boolean; 
-  index: number;
+  index?: number; // Made index optional as it's not always semantically required for display
   team?: string; 
+  itemKey?: string; // Explicit key prop
 }
 
-const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, probability, onSelect, isSelected, isSelectable, index, team }) => (
+export const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, probability, onSelect, isSelected, isSelectable, index, team, itemKey }) => (
   <li
+    key={itemKey}
     className={`flex justify-between items-center p-2.5 rounded-md transition-colors duration-150 ease-in-out
                 ${isSelected && isSelectable ? 'bg-[var(--selected-item-bg)] shadow-md' : 'hover:bg-[var(--main-bg)]'}
                 ${isSelectable ? 'cursor-pointer' : 'cursor-default'}
@@ -48,7 +51,7 @@ const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, pro
     onKeyDown={isSelectable ? (e) => (e.key === 'Enter' || e.key === ' ') && onSelect() : undefined}
   >
     <div className="flex items-center">
-      <span className={`mr-3 text-sm font-medium ${isSelected && isSelectable ? 'text-[var(--primary-glow)]' : 'text-[var(--text-secondary)]'}`}>{index + 1}</span>
+      {typeof index === 'number' && <span className={`mr-3 text-sm font-medium ${isSelected && isSelectable ? 'text-[var(--primary-glow)]' : 'text-[var(--text-secondary)]'}`}>{index + 1}</span>}
       <div>
         <span className={`text-sm ${isSelected && isSelectable ? 'text-[var(--text-primary)] font-semibold' : 'text-[var(--text-secondary)]'}`}>{playerName}</span>
         {team && <span className="block text-xs text-[var(--text-secondary)]">{team}</span>}
@@ -65,8 +68,15 @@ const RecommendationItem: React.FC<RecommendationItemProps> = ({ playerName, pro
   </li>
 );
 
-
-export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, analysisData, onPlayerSelect, selectedPlayerId, isLoading }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  selectedDate, 
+  onDateChange, 
+  analysisData, 
+  onPlayerSelect, 
+  selectedPlayerId, 
+  isLoading,
+  className 
+}) => {
   const { currentUser, signOutUser, loading: authLoading } = useAuth(); 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
 
@@ -82,10 +92,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
 
   return (
     <> 
-      <aside className="w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex flex-col h-screen md:sticky md:top-0"> {/* Changed to flex-col */}
-        {/* Header Section (Logo & Date) */}
-        <div className="flex-shrink-0"> {/* Ensure header doesn't get pushed down by mt-auto */}
-            <div className="logo text-left mb-6"> {/* Added mb-6 for spacing */}
+      <aside className={`w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex flex-col h-full ${className}`}>
+        <div className="flex-shrink-0">
+            <div className="logo text-left mb-6">
               <h1 className="font-[var(--font-display)] font-bold text-4xl tracking-tight uppercase neon-text italic">
                 STREAKSENSE
               </h1>
@@ -100,6 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                           onChange={handleDateInputChange}
                           className="bg-transparent border-0 text-[var(--primary-glow)] p-0 text-xs font-semibold focus:outline-none focus:ring-0 appearance-none pr-5 cursor-pointer"
                           style={{ colorScheme: 'dark' }}
+                          aria-label="Select analysis date"
                       />
                       <FiCalendar className="w-3.5 h-3.5 text-[var(--primary-glow)] opacity-70 group-hover:opacity-100 transition-opacity absolute right-0 top-1/2 transform -translate-y-1/2 pointer-events-none" />
                   </div>
@@ -107,8 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
             </div>
         </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-grow overflow-y-auto space-y-6 pr-1"> {/* Added pr-1 for scrollbar space */}
+        <div className="flex-grow overflow-y-auto space-y-6 pr-1 pb-4"> {/* Added pb-4 for bottom padding */}
             <section>
               <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
               {isLoading ? (
@@ -117,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                 <ul className="space-y-1.5" role="listbox" aria-label="Top Player Recommendations">
                   {analysisData.recommendations.slice(0, 5).map((player, index) => ( 
                     <RecommendationItem
-                      key={player.player}
+                      itemKey={`rec-${player.player}-${index}`}
                       playerName={player.player}
                       team={player.team}
                       probability={player.finalVerdict.compositeHitProbability}
@@ -134,21 +143,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
             </section>
 
             {analysisData?.watchListCautionaryNotes && (
-              <>
               <section>
                   <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Watch List</h2>
                   {analysisData.watchListCautionaryNotes.honorableMentions.length > 0 ? (
                       <ul className="space-y-1">
                           {analysisData.watchListCautionaryNotes.honorableMentions.slice(0,3).map((item: HonorableMention, idx) => ( 
                               <RecommendationItem
-                                  key={item.player + idx}
+                                  itemKey={`watch-${item.player}-${idx}`}
                                   playerName={item.player}
                                   team={item.team}
                                   probability={item.compositeHitProbability} 
-                                  onSelect={() => { /* Watchlist items are not selectable for main display */ }}
+                                  onSelect={() => { /* Watchlist items are not selectable for main display from sidebar */ }}
                                   isSelected={false} 
                                   isSelectable={false} 
-                                  index={idx + (analysisData.recommendations?.length || 0)}
+                                  // No index number for watchlist items in sidebar to differentiate
                               />
                           ))}
                       </ul>
@@ -156,7 +164,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                       <p className="text-xs text-[var(--text-secondary)] text-center py-2">No honorable mentions.</p>
                   )}
               </section>
-              </>
             )}
 
             <section>
@@ -167,7 +174,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
             <ImportantNote />
         </div>
 
-        {/* Auth Section - Pushed to bottom */}
         <div className="flex-shrink-0 mt-auto pt-4 border-t border-[var(--border-color)]">
             {authLoading ? (
                 <div className="flex items-center justify-center h-10">
@@ -198,7 +204,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                 </button>
             )}
         </div>
-
       </aside>
       {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />} 
     </> 

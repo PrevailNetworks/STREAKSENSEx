@@ -1,5 +1,6 @@
+
 // src/firebase.ts
-import { initializeApp, getApps, getApp } from 'firebase/app'; // Changed
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app'; // Changed to named imports
 import { getFirestore } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -25,12 +26,12 @@ if (!firebaseConfig.projectId) {
 }
 
 
-let app: ReturnType<typeof initializeApp>; 
+let app: FirebaseApp; // Use FirebaseApp type
 
-if (!getApps().length) { // Changed
-  app = initializeApp(firebaseConfig); // Changed
+if (!getApps().length) { // Use named import directly
+  app = initializeApp(firebaseConfig); // Use named import directly
 } else {
-  app = getApp(); // Changed
+  app = getApp(); // Use named import directly
 }
 
 const db: Firestore = getFirestore(app);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { MainDisplay } from '@/components/MainDisplay';
@@ -7,18 +8,22 @@ import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore, Firestor
 import type { AnalysisReport, PlayerData } from './types';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useAuth, EMAIL_FOR_SIGN_IN_LINK_KEY } from './contexts/AuthContext';
+import { MobileHeader } from './components/MobileHeader'; // Added
+import { FlyoutMenu } from './components/FlyoutMenu'; // Added
+import { MobilePlayerPicker } from './components/MobilePlayerPicker'; // Added
 
-const STALE_THRESHOLD_HOURS = 4; 
-const REFRESH_CUTOFF_UTC_HOUR = 23; 
+const STALE_THRESHOLD_HOURS = 4;
+const REFRESH_CUTOFF_UTC_HOUR = 23;
 
 const App: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [analysisData, setAnalysisData] = useState<AnalysisReport | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // For data loading
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const authContext = useAuth(); 
+  const [isFlyoutOpen, setIsFlyoutOpen] = useState<boolean>(false); // Added for FlyoutMenu
+
+  const authContext = useAuth();
 
   useEffect(() => {
     const link = window.location.href;
@@ -49,7 +54,7 @@ const App: React.FC = () => {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, []);
 
   const formatDateForDisplay = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
@@ -68,13 +73,12 @@ const App: React.FC = () => {
     setError(null);
     setAnalysisData(null);
     setSelectedPlayer(null);
-    
+
     const dateKey = formatDateForKey(date);
     const humanReadableDate = formatDateForDisplay(date);
     let forceRefresh = false;
 
     try {
-      console.log(`Attempting to load data for ${dateKey} from Firestore...`);
       const firestoreResult: FirestoreReportWithTimestamp | null = await getAnalysisReportFromFirestore(dateKey);
 
       if (firestoreResult) {
@@ -85,16 +89,9 @@ const App: React.FC = () => {
           
           if (dataAgeHours > STALE_THRESHOLD_HOURS) {
             if (now.getUTCHours() < REFRESH_CUTOFF_UTC_HOUR) {
-                console.log(`Data for today (${dateKey}) is stale (older than ${STALE_THRESHOLD_HOURS} hours) AND before cutoff time (${REFRESH_CUTOFF_UTC_HOUR}:00 UTC). Forcing refresh from Gemini.`);
                 forceRefresh = true;
-            } else {
-                console.log(`Data for today (${dateKey}) is stale BUT it's past the refresh cutoff time (${REFRESH_CUTOFF_UTC_HOUR}:00 UTC). Using stale Firestore version.`);
             }
-          } else {
-            console.log(`Data for today (${dateKey}) is fresh. Using Firestore version.`);
           }
-        } else {
-          console.log(`Data for past date ${dateKey} found in Firestore. Using Firestore version.`);
         }
 
         if (!forceRefresh) {
@@ -104,93 +101,113 @@ const App: React.FC = () => {
           }
         }
       } else {
-        console.log(`No data in Firestore for ${dateKey}. Will fetch from Gemini API.`);
         forceRefresh = true;
       }
 
       if (forceRefresh) {
-        console.log(`Fetching fresh data for ${dateKey} from Gemini API...`);
         const geminiData = await fetchAnalysisForDate(dateKey, humanReadableDate);
-        console.log(`Data for ${dateKey} successfully fetched from Gemini API.`);
         setAnalysisData(geminiData);
         if (geminiData.recommendations && geminiData.recommendations.length > 0) {
           setSelectedPlayer(geminiData.recommendations[0]);
         }
         
         if (geminiData && geminiData.recommendations && geminiData.recommendations.length > 0) {
-            console.log(`Attempting to save fresh data for ${dateKey} to Firestore...`);
             saveAnalysisReportToFirestore(dateKey, geminiData)
               .catch(fsError => console.error("Failed to save report to Firestore in background:", fsError));
-        } else {
-            console.warn(`Not saving data for ${dateKey} to Firestore due to invalid or empty report from Gemini.`);
         }
       }
     } catch (err) {
-      console.error(`Error in loadData for date ${dateKey}:`, err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred while loading data.';
       setError(errorMessage);
-      if (!(err instanceof Error && err.message === errorMessage)) {
-        console.error("Full error object:", err);
-      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!authContext.loading) { // Only load data if auth is not in its initial loading state.
+    if (!authContext.loading) {
         loadData(selectedDate);
     }
-  }, [selectedDate, loadData, authContext.loading]); 
+  }, [selectedDate, loadData, authContext.loading]);
 
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
+    setIsFlyoutOpen(false); // Close flyout when date changes from flyout
   };
 
   const handlePlayerSelect = (player: PlayerData) => {
     setSelectedPlayer(player);
+    // Potentially close MobilePlayerPicker's expanded view if it's open
   };
   
-  // Overall loading state considers both data loading and initial auth loading
   const overallIsLoading = isLoading || authContext.loading;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-[var(--sidebar-bg)] font-[var(--font-body)]">
-      <Sidebar
+    <div className="min-h-screen bg-[var(--sidebar-bg)] font-[var(--font-body)] flex flex-col">
+      <MobileHeader
+        selectedDate={selectedDate}
+        onMenuToggle={() => setIsFlyoutOpen(true)}
+        className="md:hidden sticky top-0 z-30 bg-[var(--sidebar-bg)] shadow-md"
+      />
+
+      <FlyoutMenu
+        isOpen={isFlyoutOpen}
+        onClose={() => setIsFlyoutOpen(false)}
         selectedDate={selectedDate}
         onDateChange={handleDateChange}
         analysisData={analysisData}
-        onPlayerSelect={handlePlayerSelect}
-        selectedPlayerId={selectedPlayer?.player}
-        isLoading={overallIsLoading} 
+        isLoading={overallIsLoading}
+        className="md:hidden" // Ensures it's part of the mobile layout flow
       />
-      <div className="flex-grow flex flex-col md:overflow-y-auto">
-        <main className="flex-grow bg-[var(--main-bg)] p-4 sm:p-6 lg:p-8 flex flex-col overflow-y-auto md:overflow-y-visible">
-          {overallIsLoading && (
-            <div className="flex flex-col items-center justify-center flex-grow h-full w-full">
-              <Loader message={authContext.loading ? "Authenticating..." : "Analyzing Matchups..."} />
-            </div>
-          )}
-          {error && !overallIsLoading && (
-            <div className="flex flex-col items-center justify-center text-center p-8 h-full">
-              <FiAlertTriangle className="w-16 h-16 text-[var(--accent-negative)] mb-4" />
-              <h2 className="text-2xl font-[var(--font-display)] text-[var(--primary-glow)] mb-2">Analysis Unavailable</h2>
-              <p className="text-[var(--text-secondary)]">{error}</p>
-              <p className="text-sm text-[var(--text-secondary)] mt-2">Please try a different date or check back later.</p>
-            </div>
-          )}
-          {analysisData && selectedPlayer && !overallIsLoading && !error && (
-            <MainDisplay player={selectedPlayer} reportDate={analysisData.date} />
-          )}
-          {!analysisData && !overallIsLoading && !error && ( // No data loaded, not loading, no error
-              <div className="flex flex-col items-center justify-center text-center p-8 h-full">
-                  <FiAlertTriangle className="w-16 h-16 text-[var(--text-secondary)] mb-4" />
-                  <h2 className="text-2xl font-[var(--font-display)] text-[var(--text-primary)]">No Data Available</h2>
-                  <p className="text-[var(--text-secondary)]">Player analysis data could not be loaded for the selected date.</p>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">This could be due to no games on this day, or an issue fetching the analysis.</p>
+
+      <div className="flex flex-row flex-1 overflow-hidden">
+        <Sidebar
+          selectedDate={selectedDate}
+          onDateChange={handleDateChange}
+          analysisData={analysisData}
+          onPlayerSelect={handlePlayerSelect}
+          selectedPlayerId={selectedPlayer?.player}
+          isLoading={overallIsLoading}
+          className="hidden md:flex md:flex-col" // Only for desktop
+        />
+
+        <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area">
+          <MobilePlayerPicker
+            analysisData={analysisData}
+            onPlayerSelect={handlePlayerSelect}
+            selectedPlayerId={selectedPlayer?.player}
+            isLoading={isLoading}
+            className="md:hidden sticky top-0 z-20 bg-[var(--main-bg)] shadow-sm"
+          />
+
+          <main className={`flex-grow bg-[var(--main-bg)] p-4 sm:p-6 lg:p-8 flex flex-col 
+                           ${selectedPlayer && analysisData ? 'pt-2 md:pt-4' : 'pt-4'}`}> {/* Adjust pt based on picker presence */}
+            {overallIsLoading && (
+              <div className="flex flex-col items-center justify-center flex-grow h-full w-full">
+                <Loader message={authContext.loading ? "Authenticating..." : "Analyzing Matchups..."} />
               </div>
-          )}
-        </main>
+            )}
+            {error && !overallIsLoading && (
+              <div className="flex flex-col items-center justify-center text-center p-8 h-full">
+                <FiAlertTriangle className="w-16 h-16 text-[var(--accent-negative)] mb-4" />
+                <h2 className="text-2xl font-[var(--font-display)] text-[var(--primary-glow)] mb-2">Analysis Unavailable</h2>
+                <p className="text-[var(--text-secondary)]">{error}</p>
+                <p className="text-sm text-[var(--text-secondary)] mt-2">Please try a different date or check back later.</p>
+              </div>
+            )}
+            {analysisData && selectedPlayer && !overallIsLoading && !error && (
+              <MainDisplay player={selectedPlayer} reportDate={analysisData.date} />
+            )}
+            {!analysisData && !selectedPlayer && !overallIsLoading && !error && (
+                <div className="flex flex-col items-center justify-center text-center p-8 h-full">
+                    <FiAlertTriangle className="w-16 h-16 text-[var(--text-secondary)] mb-4" />
+                    <h2 className="text-2xl font-[var(--font-display)] text-[var(--text-primary)]">No Data Available</h2>
+                    <p className="text-[var(--text-secondary)]">Player analysis data could not be loaded for the selected date.</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">This could be due to no games on this day, or an issue fetching the analysis.</p>
+                </div>
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );

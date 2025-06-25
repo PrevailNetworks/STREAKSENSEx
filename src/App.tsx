@@ -4,9 +4,11 @@ import { Sidebar } from '@/components/Sidebar';
 import { MainDisplay } from '@/components/MainDisplay';
 import { Loader } from '@/components/Loader';
 import { fetchAnalysisForDate } from './services/geminiService';
-import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore } from './services/firestoreService';
+import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore, FirestoreReportWithTimestamp } from './services/firestoreService';
 import type { AnalysisReport, PlayerData } from './types';
 import { FiAlertTriangle } from 'react-icons/fi';
+
+const STALE_THRESHOLD_HOURS = 4; // Data for today is considered stale after 4 hours
 
 const App: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -35,30 +37,51 @@ const App: React.FC = () => {
     
     const dateKey = formatDateForKey(date);
     const humanReadableDate = formatDateForDisplay(date);
+    let forceRefresh = false;
 
     try {
       console.log(`Attempting to load data for ${dateKey} from Firestore...`);
-      let data = await getAnalysisReportFromFirestore(dateKey);
+      const firestoreResult: FirestoreReportWithTimestamp | null = await getAnalysisReportFromFirestore(dateKey);
 
-      if (data) {
-        console.log(`Data for ${dateKey} successfully loaded from Firestore.`);
-        setAnalysisData(data);
-        if (data.recommendations && data.recommendations.length > 0) {
-          setSelectedPlayer(data.recommendations[0]);
+      if (firestoreResult) {
+        const todayKey = formatDateForKey(new Date());
+        if (dateKey === todayKey) {
+          const now = new Date();
+          const dataAgeHours = (now.getTime() - firestoreResult.fetchedAt.getTime()) / (1000 * 60 * 60);
+          if (dataAgeHours > STALE_THRESHOLD_HOURS) {
+            console.log(`Data for today (${dateKey}) is stale (older than ${STALE_THRESHOLD_HOURS} hours). Forcing refresh from Gemini.`);
+            forceRefresh = true;
+          } else {
+            console.log(`Data for today (${dateKey}) is fresh. Using Firestore version.`);
+          }
+        } else {
+          console.log(`Data for past date ${dateKey} found in Firestore. Using Firestore version.`);
+        }
+
+        if (!forceRefresh) {
+          setAnalysisData(firestoreResult.report);
+          if (firestoreResult.report.recommendations && firestoreResult.report.recommendations.length > 0) {
+            setSelectedPlayer(firestoreResult.report.recommendations[0]);
+          }
         }
       } else {
-        console.log(`No data in Firestore for ${dateKey}. Fetching from Gemini API...`);
-        data = await fetchAnalysisForDate(dateKey, humanReadableDate);
+        console.log(`No data in Firestore for ${dateKey}. Will fetch from Gemini API.`);
+        forceRefresh = true; // No data means we must fetch
+      }
+
+      if (forceRefresh) {
+        console.log(`Fetching fresh data for ${dateKey} from Gemini API...`);
+        const geminiData = await fetchAnalysisForDate(dateKey, humanReadableDate);
         console.log(`Data for ${dateKey} successfully fetched from Gemini API.`);
-        setAnalysisData(data);
-        if (data.recommendations && data.recommendations.length > 0) {
-          setSelectedPlayer(data.recommendations[0]);
+        setAnalysisData(geminiData);
+        if (geminiData.recommendations && geminiData.recommendations.length > 0) {
+          setSelectedPlayer(geminiData.recommendations[0]);
         }
-        // Save the newly fetched data to Firestore (do not await, let it run in background)
-        // Only save if data is valid
-        if (data && data.recommendations && data.recommendations.length > 0) {
-            console.log(`Attempting to save data for ${dateKey} to Firestore...`);
-            saveAnalysisReportToFirestore(dateKey, data)
+        
+        if (geminiData && geminiData.recommendations && geminiData.recommendations.length > 0) {
+            console.log(`Attempting to save fresh data for ${dateKey} to Firestore...`);
+            // Intentionally not awaiting this to avoid blocking UI, but log any background errors
+            saveAnalysisReportToFirestore(dateKey, geminiData)
               .catch(fsError => console.error("Failed to save report to Firestore in background:", fsError));
         } else {
             console.warn(`Not saving data for ${dateKey} to Firestore due to invalid or empty report from Gemini.`);
@@ -68,7 +91,6 @@ const App: React.FC = () => {
       console.error(`Error in loadData for date ${dateKey}:`, err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred while loading data.';
       setError(errorMessage);
-      // Log the full error if it's not a simple message string
       if (!(err instanceof Error && err.message === errorMessage)) {
         console.error("Full error object:", err);
       }

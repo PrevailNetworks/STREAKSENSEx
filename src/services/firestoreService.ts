@@ -10,27 +10,29 @@ interface StoredAnalysisReport extends AnalysisReport {
   fetchedAt: Timestamp;
 }
 
-export const getAnalysisReportFromFirestore = async (dateString: string): Promise<AnalysisReport | null> => {
+export interface FirestoreReportWithTimestamp {
+  report: AnalysisReport;
+  fetchedAt: Date;
+}
+
+export const getAnalysisReportFromFirestore = async (dateString: string): Promise<FirestoreReportWithTimestamp | null> => {
   try {
     const docRef = doc(db, REPORTS_COLLECTION, dateString);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       const data = docSnap.data() as StoredAnalysisReport; 
-      // The 'date' field in AnalysisReport is already a string (humanReadableDate).
-      // The 'fetchedAt' field is a Firestore Timestamp. We don't need to convert it back to a JS Date
-      // unless we specifically need to use it in the client with Date methods.
-      // For now, we return the data as AnalysisReport, which excludes fetchedAt for the app's direct use.
-      console.log(`Report for ${dateString} successfully retrieved from Firestore.`);
+      console.log(`Report for ${dateString} successfully retrieved from Firestore. Fetched at: ${data.fetchedAt.toDate().toISOString()}`);
       
-      // Ensure all fields expected by AnalysisReport are present, especially nested ones.
-      // This is a basic check; more thorough validation could be added.
       if (!data.recommendations) {
-          console.warn(`Firestore data for ${dateString} is missing 'recommendations'.`);
-          return null; // Or handle as corrupted data
+          console.warn(`Firestore data for ${dateString} is missing 'recommendations'. Returning null.`);
+          return null;
       }
-
-      return data as AnalysisReport; 
+      // Convert Firestore Timestamp to JavaScript Date object
+      const fetchedAtJSDate = data.fetchedAt.toDate();
+      
+      // Return the main report data and the JS Date version of fetchedAt
+      return { report: data as AnalysisReport, fetchedAt: fetchedAtJSDate };
     } else {
       console.log(`No report found in Firestore for date: ${dateString}.`);
       return null;

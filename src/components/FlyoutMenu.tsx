@@ -1,12 +1,12 @@
 
 import React, { useState }  from 'react';
-import { FiX, FiCalendar, FiLogIn, FiLogOut, FiUser, FiList, FiGrid, FiMessageSquare } from 'react-icons/fi'; // Added FiMessageSquare
+import { FiX, FiCalendar, FiLogIn, FiLogOut, FiUser, FiList, FiGrid, FiMessageSquare } from 'react-icons/fi';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from './AuthModal';
 // AudioPlayer is removed from FlyoutMenu
 import type { AnalysisReport, HonorableMention, PlayerData } from '../types';
 import { Loader } from './Loader';
-import { RecommendationItem } from './AnalyticsContextualPanel'; // Updated import if Sidebar was renamed
+import { RecommendationItem } from './AnalyticsContextualPanel';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 interface FlyoutMenuProps {
@@ -19,12 +19,12 @@ interface FlyoutMenuProps {
   maxDate: string;
   className?: string;
   onNavigateToDashboard?: () => void;
-  onOpenAuthModal: () => void; 
-  onOpenResearchChat: () => void; 
-  currentUser: FirebaseUser | null; 
-  favoritePlayersMap: Record<string, boolean>; 
-  onSetPick: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; 
-  onToggleFavorite: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; 
+  onOpenAuthModal: () => void;
+  // onOpenResearchChat: () => void; // Removed
+  currentUser: FirebaseUser | null;
+  favoritePlayersMap: Record<string, boolean>;
+  onSetPick: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
+  onToggleFavorite: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
 }
 
 export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
@@ -38,14 +38,14 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
   className,
   onNavigateToDashboard,
   onOpenAuthModal,
-  onOpenResearchChat,
+  // onOpenResearchChat, // Removed
   currentUser,
   favoritePlayersMap,
   onSetPick,
   onToggleFavorite
 }) => {
-  const { signOutUser, loading: authLoading } = useAuth(); 
-  const [isAuthModalOpenForFlyout, setIsAuthModalOpenForFlyout] = useState(false); 
+  const { signOutUser, loading: authLoading } = useAuth();
+  const [isAuthModalOpenForFlyout, setIsAuthModalOpenForFlyout] = useState(false);
 
 
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,18 +59,18 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
   
   const handleSignOut = async () => {
     await signOutUser();
-    onClose(); 
+    onClose();
   };
 
   const handleOpenAuthFromFlyout = () => {
-    onClose(); 
-    onOpenAuthModal(); 
+    onClose();
+    onOpenAuthModal();
   }
   
   const relevantHonorableData = (h: HonorableMention): Pick<PlayerData, 'player' | 'team' | 'mlbId' | 'finalVerdict'> => ({
     player: h.player,
     team: h.team,
-    mlbId: undefined, 
+    mlbId: undefined,
     finalVerdict: { compositeHitProbability: h.compositeHitProbability || 0 },
   });
 
@@ -124,17 +124,8 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
             </div>
           </section>
 
-          {currentUser && (
-            <section>
-              <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Tools</h3>
-               <button
-                  onClick={() => { onOpenResearchChat(); onClose(); }}
-                  className="w-full flex items-center justify-start bg-[var(--main-bg)] text-[var(--text-primary)] hover:text-[var(--primary-glow)] px-3 py-2.5 rounded-md text-sm font-medium border border-[var(--border-color)] hover:border-[var(--primary-glow)]/50 transition-colors"
-              >
-                  <FiMessageSquare className="mr-3 text-[var(--primary-glow)]"/> Player Research AI
-              </button>
-            </section>
-          )}
+          {/* Player Research AI button removed from here, as ChatPanel is persistent on desktop */}
+          {/* Consider if a mobile-specific way to access chat is needed later, or if it's desktop-only for now */}
 
           {analysisData?.watchListCautionaryNotes && (
             <section>
@@ -147,7 +138,7 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
                 <ul className="space-y-1.5">
                   {analysisData.watchListCautionaryNotes.honorableMentions.slice(0, 3).map((item: HonorableMention, idx) => (
                     <RecommendationItem
-                      key={`flyout-watch-${item.player}-${idx}`} // Using key directly
+                      key={`flyout-watch-${item.player}-${idx}`}
                       player={relevantHonorableData(item)}
                       isSelected={false}
                       isSelectable={false}

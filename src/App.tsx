@@ -39,7 +39,7 @@ const App: React.FC = () => {
   const [isResearchChatOpen, setIsResearchChatOpen] = useState<boolean>(false);
 
   // Audio Player State (managed in App for persistence)
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(true);
@@ -67,7 +67,7 @@ const App: React.FC = () => {
         setAudioError(null);
       };
       audioElement.onended = () => setIsAudioPlaying(false);
-      audioElement.onerror = (e: Event) => { // Type the event parameter
+      audioElement.onerror = (e: Event | string) => { // Type the event parameter
         let message = "Audio error.";
         // Use audioElement here for type safety if needed, or audioRef.current if checked
         if (audioElement.error) {

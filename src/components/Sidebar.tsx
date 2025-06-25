@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { AnalysisReport, PlayerData, HonorableMention } from '../types';
-import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut } from 'react-icons/fi';
+import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser } from 'react-icons/fi'; // Added FiUser
 import { AudioPlayer } from './AudioPlayer';
 import { Loader } from './Loader'; 
 import { useAuth } from '@/contexts/AuthContext'; 
@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 const ImportantNote: React.FC = () => (
-  <div className="bg-blue-900/30 text-blue-300 p-3 rounded-md border border-blue-700 text-xs">
+  <div className="bg-blue-900/30 text-blue-300 p-3 rounded-md border border-blue-700 text-xs mt-auto"> {/* Added mt-auto here to push to bottom if it's the last main element */}
     <p className="flex items-start">
       <FiAlertCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
       <span><strong>Important:</strong> Always confirm players are in the final starting lineup on MLB.com before making your selection.</span>
@@ -82,9 +82,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
 
   return (
     <> 
-      <aside className="w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex-shrink-0 space-y-6 overflow-y-auto h-screen md:sticky md:top-0">
-        <div className="flex justify-between items-start"> 
-            <div className="logo text-left">
+      <aside className="w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex flex-col h-screen md:sticky md:top-0"> {/* Changed to flex-col */}
+        {/* Header Section (Logo & Date) */}
+        <div className="flex-shrink-0"> {/* Ensure header doesn't get pushed down by mt-auto */}
+            <div className="logo text-left mb-6"> {/* Added mb-6 for spacing */}
               <h1 className="font-[var(--font-display)] font-bold text-4xl tracking-tight uppercase neon-text italic">
                 STREAKSENSE
               </h1>
@@ -104,90 +105,99 @@ export const Sidebar: React.FC<SidebarProps> = ({ selectedDate, onDateChange, an
                   </div>
               </div>
             </div>
-            
-            <div className="text-right">
-                {authLoading ? (
-                     <div className="w-20 h-8 bg-[var(--main-bg)] rounded-md animate-pulse"></div>
-                ) : currentUser ? (
-                    <div className="flex flex-col items-end">
-                        <p className="text-xs text-[var(--text-secondary)] truncate max-w-[100px] sm:max-w-[120px]" title={currentUser.email || 'Authenticated User'}>
-                            {currentUser.displayName || currentUser.email}
-                        </p>
-                        <button 
-                            onClick={signOutUser} 
-                            className="text-xs text-[var(--primary-glow)] hover:underline flex items-center"
-                        >
-                           <FiLogOut className="mr-1"/> Logout
-                        </button>
-                    </div>
-                ) : (
-                    <button 
-                        onClick={() => setIsAuthModalOpen(true)}
-                        className="bg-[var(--primary-glow)] text-black px-3 py-1.5 rounded-md text-xs font-semibold hover:opacity-90 transition-opacity flex items-center"
-                    >
-                        <FiLogIn className="mr-1.5"/> Login / Sign Up
-                    </button>
-                )}
-            </div>
         </div>
 
-
-        <section>
-          <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
-          {isLoading ? (
-            <Loader message="Loading Picks..." />
-          ) : analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
-            <ul className="space-y-1.5" role="listbox" aria-label="Top Player Recommendations">
-              {analysisData.recommendations.slice(0, 5).map((player, index) => ( 
-                <RecommendationItem
-                  key={player.player}
-                  playerName={player.player}
-                  team={player.team}
-                  probability={player.finalVerdict.compositeHitProbability}
-                  onSelect={() => onPlayerSelect(player)}
-                  isSelected={player.player === selectedPlayerId}
-                  isSelectable={true}
-                  index={index}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-center py-4 text-[var(--text-secondary)]">No recommendations available.</p>
-          )}
-        </section>
-
-        {analysisData?.watchListCautionaryNotes && (
-          <>
-          <section>
-              <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Watch List</h2>
-              {analysisData.watchListCautionaryNotes.honorableMentions.length > 0 ? (
-                  <ul className="space-y-1">
-                      {analysisData.watchListCautionaryNotes.honorableMentions.slice(0,3).map((item: HonorableMention, idx) => ( 
-                          <RecommendationItem
-                              key={item.player + idx}
-                              playerName={item.player}
-                              team={item.team}
-                              probability={item.compositeHitProbability} 
-                              onSelect={() => { /* Watchlist items are not selectable for main display */ }}
-                              isSelected={false} 
-                              isSelectable={false} 
-                              index={idx + (analysisData.recommendations?.length || 0)}
-                          />
-                      ))}
-                  </ul>
+        {/* Scrollable Content Area */}
+        <div className="flex-grow overflow-y-auto space-y-6 pr-1"> {/* Added pr-1 for scrollbar space */}
+            <section>
+              <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
+              {isLoading ? (
+                <Loader message="Loading Picks..." />
+              ) : analysisData?.recommendations && analysisData.recommendations.length > 0 ? (
+                <ul className="space-y-1.5" role="listbox" aria-label="Top Player Recommendations">
+                  {analysisData.recommendations.slice(0, 5).map((player, index) => ( 
+                    <RecommendationItem
+                      key={player.player}
+                      playerName={player.player}
+                      team={player.team}
+                      probability={player.finalVerdict.compositeHitProbability}
+                      onSelect={() => onPlayerSelect(player)}
+                      isSelected={player.player === selectedPlayerId}
+                      isSelectable={true}
+                      index={index}
+                    />
+                  ))}
+                </ul>
               ) : (
-                  <p className="text-xs text-[var(--text-secondary)] text-center py-2">No honorable mentions.</p>
+                <p className="text-xs text-center py-4 text-[var(--text-secondary)]">No recommendations available.</p>
               )}
-          </section>
-          </>
-        )}
+            </section>
 
-        <section>
-          <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h2>
-          <AudioPlayer selectedDate={selectedDate} />
-        </section>
+            {analysisData?.watchListCautionaryNotes && (
+              <>
+              <section>
+                  <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Watch List</h2>
+                  {analysisData.watchListCautionaryNotes.honorableMentions.length > 0 ? (
+                      <ul className="space-y-1">
+                          {analysisData.watchListCautionaryNotes.honorableMentions.slice(0,3).map((item: HonorableMention, idx) => ( 
+                              <RecommendationItem
+                                  key={item.player + idx}
+                                  playerName={item.player}
+                                  team={item.team}
+                                  probability={item.compositeHitProbability} 
+                                  onSelect={() => { /* Watchlist items are not selectable for main display */ }}
+                                  isSelected={false} 
+                                  isSelectable={false} 
+                                  index={idx + (analysisData.recommendations?.length || 0)}
+                              />
+                          ))}
+                      </ul>
+                  ) : (
+                      <p className="text-xs text-[var(--text-secondary)] text-center py-2">No honorable mentions.</p>
+                  )}
+              </section>
+              </>
+            )}
 
-        <ImportantNote />
+            <section>
+              <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h2>
+              <AudioPlayer selectedDate={selectedDate} />
+            </section>
+
+            <ImportantNote />
+        </div>
+
+        {/* Auth Section - Pushed to bottom */}
+        <div className="flex-shrink-0 mt-auto pt-4 border-t border-[var(--border-color)]">
+            {authLoading ? (
+                <div className="flex items-center justify-center h-10">
+                    <div className="w-5 h-5 border-2 border-[var(--border-color)] border-t-[var(--primary-glow)] rounded-full animate-spin"></div>
+                </div>
+            ) : currentUser ? (
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center overflow-hidden">
+                        <FiUser className="w-5 h-5 text-[var(--primary-glow)] mr-2 shrink-0"/>
+                        <span className="text-xs text-[var(--text-secondary)] truncate" title={currentUser.email || 'Authenticated User'}>
+                            {currentUser.displayName || currentUser.email}
+                        </span>
+                    </div>
+                    <button 
+                        onClick={signOutUser} 
+                        className="text-xs text-[var(--primary-glow)] hover:underline flex items-center shrink-0"
+                        aria-label="Logout"
+                    >
+                       <FiLogOut className="mr-1"/> Logout
+                    </button>
+                </div>
+            ) : (
+                <button 
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="w-full flex items-center justify-center bg-[var(--primary-glow)] text-black px-3 py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                    <FiLogIn className="mr-2"/> Login / Sign Up
+                </button>
+            )}
+        </div>
 
       </aside>
       {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />} 

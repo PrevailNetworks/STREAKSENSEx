@@ -62,18 +62,45 @@ export const getUserDailyPicks = async (userId: string, dateKey: string): Promis
   try {
     const pickDocRef = doc(db, 'users', userId, DAILY_PICKS_SUBCOLLECTION, dateKey);
     const docSnap = await getDoc(pickDocRef);
+
     if (docSnap.exists()) {
-      const data = docSnap.data() as UserDailyPicksDocument;
-      // Convert Firestore Timestamps to JS Dates
-      if (data.lastUpdatedAt instanceof Timestamp) {
-        data.lastUpdatedAt = data.lastUpdatedAt.toDate();
-      }
-      data.picks.forEach(pick => {
-        if (pick.pickedAt instanceof Timestamp) {
-          pick.pickedAt = pick.pickedAt.toDate();
+      const rawData = docSnap.data(); // rawData is firebase.firestore.DocumentData
+
+      const processedPicks: PlayerPickInfo[] = (rawData.picks as any[] || []).map((p: any) => {
+        let pickedAtDate: Date;
+        if (p.pickedAt instanceof Timestamp) {
+          pickedAtDate = p.pickedAt.toDate();
+        } else if (p.pickedAt instanceof Date) {
+          pickedAtDate = p.pickedAt; // Already a Date
+        } else {
+          console.warn(`Pick ${p.playerId || 'unknown'} for date ${dateKey} has invalid pickedAt type:`, p.pickedAt, ". Using current date as fallback.");
+          pickedAtDate = new Date(); // Fallback for unexpected type
         }
+        return {
+          playerId: p.playerId || '',
+          playerName: p.playerName || '',
+          team: p.team || '',
+          pickDate: p.pickDate || dateKey,
+          source: p.source || 'recommendation',
+          pickedAt: pickedAtDate,
+        } as PlayerPickInfo;
       });
-      return data;
+
+      let lastUpdatedAtDate: Date;
+      if (rawData.lastUpdatedAt instanceof Timestamp) {
+        lastUpdatedAtDate = rawData.lastUpdatedAt.toDate();
+      } else if (rawData.lastUpdatedAt instanceof Date) {
+        lastUpdatedAtDate = rawData.lastUpdatedAt; // Already a Date
+      } else {
+        console.warn(`Document for date ${dateKey} has invalid lastUpdatedAt type:`, rawData.lastUpdatedAt, ". Using current date as fallback.");
+        lastUpdatedAtDate = new Date(); // Fallback for unexpected type
+      }
+
+      const result: UserDailyPicksDocument = {
+        picks: processedPicks,
+        lastUpdatedAt: lastUpdatedAtDate,
+      };
+      return result;
     }
     return null;
   } catch (error) {

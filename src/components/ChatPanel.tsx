@@ -106,7 +106,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     try {
       const aiResponseText = await fetchPlayerResearchResponse(queryForAi);
       const identifiedPlayerName = extractPlayerNameFromQuery(queryForAi) || extractPlayerNameFromQuery(aiResponseText);
-      let playerContext;
+      let playerContext: ChatMessage['playerContext'] = undefined; // Explicitly typed and initialized
       if (identifiedPlayerName) {
         playerContext = {
           name: identifiedPlayerName,
@@ -157,14 +157,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
   
-  const createPlayerPickData = (playerContext: ChatMessage['playerContext']): Pick<PlayerData, 'player' | 'team' | 'mlbId'> => {
-    if (!playerContext || !playerContext.name) {
+  const createPlayerPickData = (playerContextParam: ChatMessage['playerContext']): Pick<PlayerData, 'player' | 'team' | 'mlbId'> => {
+    if (!playerContextParam || !playerContextParam.name) { // Renamed parameter to avoid conflict
         throw new Error("Player context is undefined or missing name.");
     }
     return {
-        player: playerContext.name,
-        team: playerContext.team || '', // Default to empty string if team is undefined
-        mlbId: playerContext.mlbId,
+        player: playerContextParam.name,
+        team: playerContextParam.team || '', // Default to empty string if team is undefined
+        mlbId: playerContextParam.mlbId,
     };
   };
 

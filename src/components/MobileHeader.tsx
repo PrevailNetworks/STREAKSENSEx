@@ -13,7 +13,7 @@ interface MobileHeaderProps {
   isAudioLoading: boolean;
   audioError: string | null;
   onToggleAudio: () => void;
-  hideMenuButton?: boolean; // To hide menu button on dashboard view
+  // hideMenuButton?: boolean; // Prop removed
 }
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({
@@ -27,7 +27,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   isAudioLoading,
   audioError,
   onToggleAudio,
-  hideMenuButton
+  // hideMenuButton // Prop removed
 }) => {
   const formattedDate = selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const dateInputId = "mobile-header-date-picker";
@@ -95,16 +95,14 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
             {isAudioLoading ? <FiLoader size={20} className="animate-spin" /> : <FiPlay size={20} className={isAudioPlaying ? 'fill-current' : ''}/>}
         </button>
 
-
-        {!hideMenuButton && (
-          <button
-            onClick={onMenuToggle}
-            aria-label="Open menu"
-            className="text-[var(--text-primary)] hover:text-[var(--primary-glow)]"
-          >
-            <FiMenu size={24} />
-          </button>
-        )}
+        {/* Menu button should always be visible now */}
+        <button
+          onClick={onMenuToggle}
+          aria-label="Open menu"
+          className="text-[var(--text-primary)] hover:text-[var(--primary-glow)]"
+        >
+          <FiMenu size={24} />
+        </button>
       </div>
     </header>
   );

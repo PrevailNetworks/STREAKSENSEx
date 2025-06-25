@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnalyticsContextualPanel } from '@/components/AnalyticsContextualPanel';
 import { MainDisplay } from '@/components/MainDisplay';
@@ -400,7 +398,7 @@ const App: React.FC = () => {
           isAudioLoading={isAudioLoading}
           audioError={audioError}
           onToggleAudio={toggleAudioPlayPause}
-          hideMenuButton={currentView === 'dashboard'}
+          // hideMenuButton prop removed
         />
         <FlyoutMenu
           isOpen={isFlyoutOpen}
@@ -429,7 +427,7 @@ const App: React.FC = () => {
               onLogout={async () => { await signOutUser(); setCurrentView('landing');}}
               onOpenResearchChat={() => setIsResearchChatOpen(true)}
               favoritePlayers={[]} // DashboardPage fetches its own favorite players list
-              onToggleFavorite={handleToggleFavorite} 
+              handleToggleFavorite={handleToggleFavorite} 
             />
           )}
 

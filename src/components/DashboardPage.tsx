@@ -15,7 +15,7 @@ interface DashboardPageProps {
   onLogout: () => void;
   onOpenResearchChat: () => void;
   favoritePlayers: FavoritePlayer[]; 
-  onToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
+  handleToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; // Changed prop name
 }
 
 const DashboardSection: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; comingSoon?: boolean; className?: string }> = ({ title, icon, children, comingSoon, className = "" }) => (
@@ -37,7 +37,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     onViewPlayerAnalytics, 
     onLogout, 
     onOpenResearchChat,
-    onToggleFavorite 
+    handleToggleFavorite // Changed prop name
 }) => {
   const [dailyPickInput, setDailyPickInput] = useState<string>('');
   const [currentPicksDoc, setCurrentPicksDoc] = useState<UserDailyPicksDocument | null>(null);
@@ -239,7 +239,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                       <FiEye size={16}/>
                     </button>
                     <button 
-                      onClick={() => onToggleFavorite({ player: fav.playerName, team: fav.team, mlbId: fav.mlbId })}
+                      onClick={() => handleToggleFavorite({ player: fav.playerName, team: fav.team, mlbId: fav.mlbId })}
                       className="p-1.5 text-pink-500 hover:text-pink-400 transition-colors" title="Unfavorite"
                     >
                       <FiHeart size={16} className="fill-current"/>

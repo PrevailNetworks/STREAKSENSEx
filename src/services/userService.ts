@@ -124,13 +124,8 @@ export const removeUserDailyPick = async (userId: string, dateKey: string, playe
 // --- User Favorite Players ---
 const FAVORITE_PLAYERS_SUBCOLLECTION = 'favoritePlayers';
 
-export interface FavoritePlayer {
-  playerId: string; // mlbId or unique name, used as document ID
-  playerName: string;
-  team: string;
-  mlbId?: string;
-  addedAt: Timestamp | Date; // Allow Date for optimistic updates
-}
+// Note: The FavoritePlayer interface is now solely imported from '@/types'.
+// The local definition has been removed.
 
 export const addPlayerToFavorites = async (userId: string, playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>): Promise<void> => {
   const playerId = playerData.mlbId || playerData.player.toLowerCase().replace(/\s+/g, '-');
@@ -140,12 +135,13 @@ export const addPlayerToFavorites = async (userId: string, playerData: Pick<Play
   }
   try {
     const favoriteDocRef = doc(db, 'users', userId, FAVORITE_PLAYERS_SUBCOLLECTION, playerId);
+    // Ensure data confirms to FavoritePlayer from types.ts, adapting for Firestore Timestamps
     const dataToSave: Omit<FavoritePlayer, 'addedAt'> & { addedAt: Timestamp } = {
       playerId: playerId,
       playerName: playerData.player,
       team: playerData.team,
       mlbId: playerData.mlbId,
-      addedAt: serverTimestamp() as Timestamp,
+      addedAt: serverTimestamp() as Timestamp, // Firestore expects Timestamp
     };
     await setDoc(favoriteDocRef, dataToSave, { merge: true }); 
     console.log(`Player ${playerData.player} added to user ${userId}'s favorites.`);
@@ -177,12 +173,24 @@ export const getUserFavoritePlayers = async (userId: string): Promise<FavoritePl
     const q = query(favoritesColRef, orderBy('addedAt', 'desc')); 
     const querySnapshot = await getDocs(q);
     const favorites: FavoritePlayer[] = [];
-    querySnapshot.forEach((docSnap) => { // Renamed doc to docSnap for clarity
-      const data = docSnap.data() as FavoritePlayer;
+    querySnapshot.forEach((docSnap) => { 
+      const data = docSnap.data();
+      let addedAtDate: Date;
       if (data.addedAt instanceof Timestamp) {
-        data.addedAt = data.addedAt.toDate();
+        addedAtDate = data.addedAt.toDate();
+      } else if (data.addedAt instanceof Date) { // Should ideally always be Timestamp from server
+        addedAtDate = data.addedAt;
+      } else {
+        addedAtDate = new Date(); // Fallback, though ideally this case shouldn't happen
+        console.warn(`Favorite player ${docSnap.id} for user ${userId} has an unexpected addedAt type. Using current date as fallback.`);
       }
-      favorites.push({ ...data, playerId: docSnap.id });
+      favorites.push({ 
+        playerId: docSnap.id,
+        playerName: data.playerName,
+        team: data.team,
+        mlbId: data.mlbId,
+        addedAt: addedAtDate 
+      } as FavoritePlayer);
     });
     return favorites;
   } catch (error) {

@@ -3,9 +3,9 @@ import React, { useState, FormEvent, useRef, useEffect } from 'react';
 import { FiX, FiSend, FiLoader, FiMessageSquare, FiUser, FiCpu, FiCheckSquare, FiHeart, FiAlertCircle } from 'react-icons/fi';
 import { fetchPlayerResearchResponse, fetchStructuredReportForPlayer } from '@/services/geminiService';
 import { getAdditionalPlayerReport, saveAdditionalPlayerReport } from '@/services/firestoreService';
-import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, isPlayerFavorite } from '@/services/userService'; // Changed saveUserDailyPick to addUserDailyPick
+import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, isPlayerFavorite } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
-import type { PlayerData, PlayerPickInfo } from '@/types'; // Import PlayerPickInfo
+import type { PlayerData, PlayerPickInfo } from '@/types'; 
 import { formatDateForDisplay, formatDateForKey } from '@/utils/dateUtils'; 
 
 interface PlayerResearchChatProps {
@@ -188,13 +188,13 @@ export const PlayerResearchChat: React.FC<PlayerResearchChatProps> = ({ isOpen, 
       }
 
       if (action === 'pick') {
-        const pickData: Omit<PlayerPickInfo, 'pickedAt' | 'pickDate'> = { // Use PlayerPickInfo
+        const pickData: Omit<PlayerPickInfo, 'pickedAt' | 'pickDate'> = { 
           playerId: playerId,
           playerName: structuredReport.player,
           team: structuredReport.team,
           source: 'researched',
         };
-        await addUserDailyPick(currentUser.uid, dateKey, pickData); // Changed to addUserDailyPick
+        await addUserDailyPick(currentUser.uid, dateKey, pickData); 
         alert(`${structuredReport.player} set as your pick for ${humanReadableDate}!`);
       } else if (action === 'favoriteToggle') {
         const isCurrentlyFavorite = favoriteStatus[playerId];

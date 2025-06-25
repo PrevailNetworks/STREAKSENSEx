@@ -1,3 +1,4 @@
+
 /* src/index.css */
 
 /* General body styling (if not already handled by Tailwind base or another global CSS) */
@@ -77,4 +78,22 @@ body {
 
   --selected-item-bg: rgba(163, 230, 53, 0.1); /* transparent lime for selection */
   --icon-color: #64748B; /* slate-500 */
+}
+
+/* Audio Playing Pulse Animation */
+@keyframes pulse-green {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(163, 230, 53, 0.7); /* --primary-glow with alpha */
+    color: white;
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(163, 230, 53, 0);
+    color: var(--primary-glow);
+  }
+}
+
+.audio-playing-pulse svg { /* Target the SVG within the button */
+  color: var(--primary-glow); /* Green icon color when playing */
+  animation: pulse-green 1.5s infinite;
+  border-radius: 50%; /* Apply to svg if it should appear circular for pulse */
 }

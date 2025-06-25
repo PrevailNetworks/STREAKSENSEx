@@ -1,23 +1,33 @@
 
 import React from 'react';
-import { FiMenu, FiCalendar } from 'react-icons/fi';
+import { FiMenu, FiCalendar, FiPlay, FiLoader } from 'react-icons/fi'; // Added FiPlay, FiLoader
 
 interface MobileHeaderProps {
   selectedDate: Date;
   onMenuToggle: () => void;
-  onDateChange: (date: Date) => void; 
-  maxDate: string; 
+  onDateChange: (date: Date) => void;
+  maxDate: string;
   className?: string;
-  onLogoClick?: () => void; // New: For navigating when logo is clicked
+  onLogoClick?: () => void;
+  isAudioPlaying: boolean;
+  isAudioLoading: boolean;
+  audioError: string | null;
+  onToggleAudio: () => void;
+  hideMenuButton?: boolean; // To hide menu button on dashboard view
 }
 
-export const MobileHeader: React.FC<MobileHeaderProps> = ({ 
-  selectedDate, 
-  onMenuToggle, 
-  onDateChange, 
-  maxDate, 
+export const MobileHeader: React.FC<MobileHeaderProps> = ({
+  selectedDate,
+  onMenuToggle,
+  onDateChange,
+  maxDate,
   className,
-  onLogoClick
+  onLogoClick,
+  isAudioPlaying,
+  isAudioLoading,
+  audioError,
+  onToggleAudio,
+  hideMenuButton
 }) => {
   const formattedDate = selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const dateInputId = "mobile-header-date-picker";
@@ -26,31 +36,35 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
     const dateValue = event.target.value;
     if (dateValue) {
       const dateParts = dateValue.split('-').map(Number);
-      const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-      
-      const userCurrentHours = selectedDate.getHours();
-      const userCurrentMinutes = selectedDate.getMinutes();
-      newSelectedDate.setHours(userCurrentHours, userCurrentMinutes, 0, 0);
-
+      // Preserve time from original selectedDate to avoid timezone shifts if only date changes
+      const originalTime = new Date(selectedDate);
+      const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], originalTime.getHours(), originalTime.getMinutes(), originalTime.getSeconds());
       onDateChange(newSelectedDate);
     }
   };
+  
+  let audioIconTooltip = "Play Daily Overview";
+  if (audioError) audioIconTooltip = audioError;
+  else if (isAudioLoading) audioIconTooltip = "Loading audio...";
+  else if (isAudioPlaying) audioIconTooltip = "Pause Daily Overview";
+
 
   return (
     <header className={`flex items-center justify-between p-4 text-[var(--text-primary)] ${className}`}>
-      <div 
+      <div
         className={`flex items-center ${onLogoClick ? 'cursor-pointer' : ''}`}
         onClick={onLogoClick}
         title={onLogoClick ? "Go to Dashboard/Home" : "STREAKSENSE"}
       >
-        <h1 className="font-[var(--font-display)] font-bold text-2xl tracking-tight uppercase neon-text italic">
+        <h1 className="font-[var(--font-display)] font-bold text-xl sm:text-2xl tracking-tight uppercase neon-text italic">
           STREAKSENSE
         </h1>
       </div>
       <div className="flex items-center space-x-3 sm:space-x-4">
+        {/* Date Picker */}
         <div className="relative">
-          <label 
-            htmlFor={dateInputId} 
+          <label
+            htmlFor={dateInputId}
             className="flex items-center text-xs text-[var(--text-secondary)] cursor-pointer group hover:text-[var(--text-primary)] transition-colors"
             title="Change analysis date"
           >
@@ -68,13 +82,29 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
             aria-label="Select analysis date"
           />
         </div>
-        <button 
-          onClick={onMenuToggle} 
-          aria-label="Open menu" 
-          className="text-[var(--text-primary)] hover:text-[var(--primary-glow)]"
+
+        {/* Audio Toggle Button */}
+        <button
+            onClick={onToggleAudio}
+            disabled={isAudioLoading || !!audioError}
+            className={`relative text-[var(--text-primary)] hover:text-[var(--primary-glow)] transition-colors disabled:opacity-60 disabled:cursor-not-allowed
+                        ${isAudioPlaying ? 'audio-playing-pulse' : ''}`}
+            aria-label={audioIconTooltip}
+            title={audioIconTooltip}
         >
-          <FiMenu size={24} />
+            {isAudioLoading ? <FiLoader size={20} className="animate-spin" /> : <FiPlay size={20} className={isAudioPlaying ? 'fill-current' : ''}/>}
         </button>
+
+
+        {!hideMenuButton && (
+          <button
+            onClick={onMenuToggle}
+            aria-label="Open menu"
+            className="text-[var(--text-primary)] hover:text-[var(--primary-glow)]"
+          >
+            <FiMenu size={24} />
+          </button>
+        )}
       </div>
     </header>
   );

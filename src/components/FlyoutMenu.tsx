@@ -1,11 +1,13 @@
+
 import React, { useState }  from 'react';
-import { FiX, FiCalendar, FiLogIn, FiLogOut, FiUser, FiList, FiGrid } from 'react-icons/fi';
+import { FiX, FiCalendar, FiLogIn, FiLogOut, FiUser, FiList, FiGrid, FiMessageSquare } from 'react-icons/fi'; // Added FiMessageSquare
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from './AuthModal';
-import { AudioPlayer } from './AudioPlayer';
-import type { AnalysisReport, HonorableMention } from '../types';
+// AudioPlayer is removed from FlyoutMenu
+import type { AnalysisReport, HonorableMention, PlayerData } from '../types';
 import { Loader } from './Loader';
-import { RecommendationItem } from './Sidebar';
+import { RecommendationItem } from './Sidebar'; // Re-use RecommendationItem
+import type { User as FirebaseUser } from 'firebase/auth';
 
 interface FlyoutMenuProps {
   isOpen: boolean;
@@ -16,55 +18,71 @@ interface FlyoutMenuProps {
   isLoading: boolean;
   maxDate: string;
   className?: string;
-  onNavigateToDashboard?: () => void; // New prop
+  onNavigateToDashboard?: () => void;
+  onOpenAuthModal: () => void; // Now required for quick actions
+  onOpenResearchChat: () => void; // New prop for research chat
+  currentUser: FirebaseUser | null; // For quick actions
+  favoritePlayersMap: Record<string, boolean>; // For quick actions
+  onSetPick: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; // For quick actions
+  onToggleFavorite: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; // For quick actions
 }
 
-export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({ 
-  isOpen, 
-  onClose, 
-  selectedDate, 
+export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
+  isOpen,
+  onClose,
+  selectedDate,
   onDateChange,
   analysisData,
   isLoading,
   maxDate,
   className,
-  onNavigateToDashboard
+  onNavigateToDashboard,
+  onOpenAuthModal,
+  onOpenResearchChat,
+  currentUser,
+  favoritePlayersMap,
+  onSetPick,
+  onToggleFavorite
 }) => {
-  const { currentUser, signOutUser, loading: authLoading } = useAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { signOutUser, loading: authLoading } = useAuth(); // AuthModal is opened by App now
+  const [isAuthModalOpenForFlyout, setIsAuthModalOpenForFlyout] = useState(false); // Local state for flyout's own auth modal if needed, or use onOpenAuthModal
+
 
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
       const [year, month, day] = dateValue.split('-').map(Number);
-      // Ensure date is treated in local timezone correctly
       const newSelectedDate = new Date(year, month - 1, day, selectedDate.getHours(), selectedDate.getMinutes());
       onDateChange(newSelectedDate);
     }
   };
-
-  const handleAuthModalOpen = () => {
-    setIsAuthModalOpen(true);
-  };
-
-  const handleAuthModalClose = () => {
-    setIsAuthModalOpen(false);
-    // Do not auto-close flyout when auth modal closes, user might want to interact more.
-  };
   
-  const handleSignOut = () => {
-    signOutUser();
-    onClose(); // Close flyout on sign out
+  const handleSignOut = async () => {
+    await signOutUser();
+    onClose(); 
   };
+
+  const handleOpenAuthFromFlyout = () => {
+    onClose(); // Close flyout first
+    onOpenAuthModal(); // Then call App's auth modal opener
+  }
+  
+  const relevantHonorableData = (h: HonorableMention): Pick<PlayerData, 'player' | 'team' | 'mlbId' | 'finalVerdict'> => ({
+    player: h.player,
+    team: h.team,
+    mlbId: undefined, 
+    finalVerdict: { compositeHitProbability: h.compositeHitProbability || 0 },
+  });
+
 
   return (
     <>
-      <div 
+      <div
         className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ease-in-out ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
         aria-hidden="true"
       ></div>
-      <aside 
+      <aside
         className={`fixed top-0 left-0 w-80 h-full bg-[var(--sidebar-bg)] shadow-xl p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'} ${className}`}
         role="dialog"
         aria-modal="true"
@@ -80,7 +98,7 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
         <div className="flex-grow overflow-y-auto space-y-6 pr-1 pb-6 custom-scrollbar-flyout">
           {currentUser && onNavigateToDashboard && (
             <section>
-                 <button 
+                 <button
                     onClick={() => { onNavigateToDashboard(); onClose(); }}
                     className="w-full flex items-center justify-center bg-[var(--card-bg)] text-[var(--primary-glow)] px-3 py-3 rounded-md text-sm font-semibold hover:bg-[var(--selected-item-bg)] transition-colors"
                 >
@@ -105,12 +123,21 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
               />
             </div>
           </section>
-          
-          <section>
-            <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h3>
-            <AudioPlayer selectedDate={selectedDate} />
-          </section>
-          
+
+          {currentUser && (
+            <section>
+              <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Tools</h3>
+               <button
+                  onClick={() => { onOpenResearchChat(); onClose(); }}
+                  className="w-full flex items-center justify-start bg-[var(--main-bg)] text-[var(--text-primary)] hover:text-[var(--primary-glow)] px-3 py-2.5 rounded-md text-sm font-medium border border-[var(--border-color)] hover:border-[var(--primary-glow)]/50 transition-colors"
+              >
+                  <FiMessageSquare className="mr-3 text-[var(--primary-glow)]"/> Player Research AI
+              </button>
+            </section>
+          )}
+
+          {/* AudioPlayer removed from here */}
+
           {analysisData?.watchListCautionaryNotes && (
             <section>
               <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2 flex items-center">
@@ -120,15 +147,20 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
                  <div className="py-4"><Loader message="Checking watch list..." /></div>
               ) : analysisData.watchListCautionaryNotes.honorableMentions.length > 0 ? (
                 <ul className="space-y-1.5">
-                  {analysisData.watchListCautionaryNotes.honorableMentions.slice(0, 3).map((item: HonorableMention, idx) => ( 
+                  {analysisData.watchListCautionaryNotes.honorableMentions.slice(0, 3).map((item: HonorableMention, idx) => (
                     <RecommendationItem
-                      itemKey={`flyout-watch-${item.player}-${idx}`}
-                      playerName={item.player}
-                      team={item.team}
-                      probability={item.compositeHitProbability}
-                      onSelect={() => { /* Non-interactive in flyout */}}
+                      key={`flyout-watch-${item.player}-${idx}`}
+                      player={relevantHonorableData(item)}
+                      // onSelect: Watchlist items not selectable for main display from flyout
                       isSelected={false}
-                      isSelectable={false}
+                      isSelectable={false} // Make them non-selectable for main display
+                      currentUser={currentUser}
+                      selectedDate={selectedDate}
+                      favoritePlayersMap={favoritePlayersMap}
+                      onSetPick={onSetPick}
+                      onToggleFavorite={onToggleFavorite}
+                      onOpenAuthModal={handleOpenAuthFromFlyout}
+                      isCompact={true}
                     />
                   ))}
                 </ul>
@@ -152,8 +184,8 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
                       {currentUser.displayName || currentUser.email}
                   </span>
                 </div>
-                <button 
-                    onClick={handleSignOut} 
+                <button
+                    onClick={handleSignOut}
                     className="w-full flex items-center justify-center text-sm text-[var(--primary-glow)] hover:underline py-2 rounded-md border border-[var(--primary-glow)] hover:bg-[var(--primary-glow)]/10"
                     aria-label="Logout"
                 >
@@ -161,8 +193,8 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
                 </button>
               </div>
             ) : (
-              <button 
-                  onClick={handleAuthModalOpen}
+              <button
+                  onClick={handleOpenAuthFromFlyout}
                   className="w-full flex items-center justify-center bg-[var(--primary-glow)] text-black px-3 py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity"
               >
                   <FiLogIn className="mr-2"/> Login / Sign Up
@@ -171,7 +203,8 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
           </section>
         </div>
       </aside>
-      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={handleAuthModalClose} />}
+      {/* AuthModal is now rendered and controlled by App.tsx, this local one is fallback if needed */}
+      {isAuthModalOpenForFlyout && <AuthModal isOpen={isAuthModalOpenForFlyout} onClose={() => setIsAuthModalOpenForFlyout(false)} />}
     </>
   );
 };

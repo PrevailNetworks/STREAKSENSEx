@@ -51,13 +51,19 @@
         }
 
         .neon-text {
-            color: #fff;
+            color: #fff; /* Base letter color - very bright */
             text-shadow:
-                0 0 5px rgba(163, 230, 53, 0.7),
-                0 0 10px rgba(163, 230, 53, 0.7),
-                0 0 20px rgba(163, 230, 53, 0.7),
-                0 0 40px rgba(37, 99, 235, 0.5),
-                0 0 80px rgba(37, 99, 235, 0.5);
+                /* Inner white bloom for sharpness */
+                0 0 2px #fff,
+                /* Bright, sharp primary green glow */
+                0 0 5px var(--accent-positive),  /* #a3e635, brighter lime */
+                0 0 8px var(--accent-positive),
+                /* Slightly softer, wider green glow */
+                0 0 15px var(--primary-glow),   /* #84cc16, primary lime */
+                0 0 25px var(--primary-glow),
+                /* Diffuse outer glow - using primary-glow with more alpha */
+                0 0 40px rgba(132, 204, 22, 0.6), /* #84cc16 with alpha */
+                0 0 60px rgba(132, 204, 22, 0.4); /* #84cc16 with more alpha */
         }
         
         /* Custom date picker icon color for dark mode */
@@ -76,11 +82,11 @@
     "react/": "https://esm.sh/react@^19.1.0/",
     "react-icons/": "https://esm.sh/react-icons@^5.5.0/",
     "@google/genai": "https://esm.sh/@google/genai@^1.6.0",
-    "recharts": "https://esm.sh/recharts@^3.0.0",
-    "vite": "https://esm.sh/vite@^6.3.5",
+    "vite": "https://esm.sh/vite@^7.0.0",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^4.6.0",
     "path": "https://esm.sh/path@^0.12.7",
-    "firebase/": "https://esm.sh/firebase@^11.9.1/"
+    "firebase/": "https://esm.sh/firebase@^11.9.1/",
+    "recharts": "https://esm.sh/recharts@^3.0.0"
   }
 }
 </script>

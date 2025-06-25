@@ -5,8 +5,8 @@ import { MainDisplay } from '@/components/MainDisplay';
 import { Loader } from '@/components/Loader';
 import { fetchAnalysisForDate, fetchStructuredReportForPlayer } from './services/geminiService';
 import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore, FirestoreReportWithTimestamp, getAdditionalPlayerReport, saveAdditionalPlayerReport } from './services/firestoreService';
-import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, getUserFavoritePlayers, FavoritePlayer, getUserDailyPicks, removeUserDailyPick as removePickService } from './services/userService';
-import type { AnalysisReport, PlayerData, PlayerPickInfo, UserDailyPicksDocument } from './types';
+import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, getUserFavoritePlayers, getUserDailyPicks, removeUserDailyPick as removePickService } from './services/userService';
+import type { AnalysisReport, PlayerData, PlayerPickInfo, UserDailyPicksDocument, FavoritePlayer } from './types'; // Corrected FavoritePlayer import
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useAuth, EMAIL_FOR_SIGN_IN_LINK_KEY } from './contexts/AuthContext';
 import { MobileHeader } from './components/MobileHeader';

@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { User } from 'firebase/auth';
 import { FiUser, FiCalendar, FiTrendingUp, FiList, FiMessageSquare, FiUploadCloud, FiSettings, FiLogOut, FiBarChart2, FiEdit3, FiEye, FiHeart, FiLoader, FiXCircle, FiPlusCircle } from 'react-icons/fi';
 import { formatDateForDisplay, formatDateForKey } from '@/utils/dateUtils';
-import { getUserDailyPicks, addUserDailyPick, PlayerPickInfo, FavoritePlayer, getUserFavoritePlayers, removeUserDailyPick as removePickService, UserDailyPicksDocument } from '@/services/userService'; 
-import type { PlayerData } from '@/types';
+import { getUserDailyPicks, addUserDailyPick, removeUserDailyPick as removePickService, getUserFavoritePlayers } from '@/services/userService'; 
+import type { PlayerData, PlayerPickInfo, FavoritePlayer, UserDailyPicksDocument } from '@/types';
 import { Loader } from '@/components/Loader'; 
 
 
@@ -15,7 +15,7 @@ interface DashboardPageProps {
   onLogout: () => void;
   onOpenResearchChat: () => void;
   favoritePlayers: FavoritePlayer[]; 
-  handleToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; // Changed prop name
+  handleToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>; 
 }
 
 const DashboardSection: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; comingSoon?: boolean; className?: string }> = ({ title, icon, children, comingSoon, className = "" }) => (
@@ -37,7 +37,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     onViewPlayerAnalytics, 
     onLogout, 
     onOpenResearchChat,
-    handleToggleFavorite // Changed prop name
+    handleToggleFavorite 
 }) => {
   const [dailyPickInput, setDailyPickInput] = useState<string>('');
   const [currentPicksDoc, setCurrentPicksDoc] = useState<UserDailyPicksDocument | null>(null);
@@ -76,7 +76,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         alert("You already have two picks. Please remove one first.");
         return;
     }
-     if (currentPicksArray.some(p => p.playerName.toLowerCase() === dailyPickInput.trim().toLowerCase())) {
+     if (currentPicksArray.some((p: PlayerPickInfo) => p.playerName.toLowerCase() === dailyPickInput.trim().toLowerCase())) { // Explicitly typed 'p'
       alert("This player is already one of your picks.");
       return;
     }
@@ -169,7 +169,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           ) : (
             <div className="space-y-4">
               {picksForDay.length > 0 ? (
-                picksForDay.map((pick, index) => (
+                picksForDay.map((pick: PlayerPickInfo, index: number) => ( // Explicitly typed pick and index
                   <div key={pick.playerId} className="p-3 bg-[var(--sidebar-bg)] rounded-md border border-[var(--border-color)]">
                     <div className="flex justify-between items-center">
                       <div>

@@ -1,6 +1,5 @@
-
 import React, { useState }  from 'react';
-import { FiX, FiCalendar, FiLogIn, FiLogOut, FiUser, FiList } from 'react-icons/fi'; // Removed FiAlertCircle
+import { FiX, FiCalendar, FiLogIn, FiLogOut, FiUser, FiList, FiGrid } from 'react-icons/fi';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from './AuthModal';
 import { AudioPlayer } from './AudioPlayer';
@@ -15,8 +14,9 @@ interface FlyoutMenuProps {
   onDateChange: (date: Date) => void;
   analysisData: AnalysisReport | null;
   isLoading: boolean;
-  maxDate: string; // Added maxDate prop
+  maxDate: string;
   className?: string;
+  onNavigateToDashboard?: () => void; // New prop
 }
 
 export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({ 
@@ -26,8 +26,9 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
   onDateChange,
   analysisData,
   isLoading,
-  maxDate, // Use passed maxDate
-  className 
+  maxDate,
+  className,
+  onNavigateToDashboard
 }) => {
   const { currentUser, signOutUser, loading: authLoading } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -36,11 +37,25 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
     const dateValue = event.target.value;
     if (dateValue) {
       const [year, month, day] = dateValue.split('-').map(Number);
-      onDateChange(new Date(year, month - 1, day));
+      // Ensure date is treated in local timezone correctly
+      const newSelectedDate = new Date(year, month - 1, day, selectedDate.getHours(), selectedDate.getMinutes());
+      onDateChange(newSelectedDate);
     }
   };
 
-  // Removed: if (!isOpen) return null; // This allows AudioPlayer to persist
+  const handleAuthModalOpen = () => {
+    setIsAuthModalOpen(true);
+  };
+
+  const handleAuthModalClose = () => {
+    setIsAuthModalOpen(false);
+    // Do not auto-close flyout when auth modal closes, user might want to interact more.
+  };
+  
+  const handleSignOut = () => {
+    signOutUser();
+    onClose(); // Close flyout on sign out
+  };
 
   return (
     <>
@@ -62,8 +77,18 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
           </button>
         </div>
 
-        <div className="flex-grow overflow-y-auto space-y-6 pr-1 pb-6">
-          {/* Date Picker Section */}
+        <div className="flex-grow overflow-y-auto space-y-6 pr-1 pb-6 custom-scrollbar-flyout">
+          {currentUser && onNavigateToDashboard && (
+            <section>
+                 <button 
+                    onClick={() => { onNavigateToDashboard(); onClose(); }}
+                    className="w-full flex items-center justify-center bg-[var(--card-bg)] text-[var(--primary-glow)] px-3 py-3 rounded-md text-sm font-semibold hover:bg-[var(--selected-item-bg)] transition-colors"
+                >
+                    <FiGrid className="mr-2"/> My Dashboard
+                </button>
+            </section>
+          )}
+
           <section>
             <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Analysis Date</h3>
             <div className="relative flex items-center group bg-[var(--main-bg)] p-2 rounded-md border border-[var(--border-color)]">
@@ -72,7 +97,7 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
                   type="date"
                   id="flyout-date-picker"
                   value={selectedDate.toISOString().split('T')[0]}
-                  max={maxDate} // Use prop
+                  max={maxDate}
                   onChange={handleDateInputChange}
                   className="bg-transparent border-0 text-[var(--text-primary)] p-0 text-sm font-medium focus:outline-none focus:ring-0 appearance-none w-full cursor-pointer"
                   style={{ colorScheme: 'dark' }}
@@ -81,13 +106,11 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
             </div>
           </section>
           
-          {/* Daily Overview Section */}
           <section>
             <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Daily Overview</h3>
             <AudioPlayer selectedDate={selectedDate} />
           </section>
           
-          {/* Watch List Section */}
           {analysisData?.watchListCautionaryNotes && (
             <section>
               <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2 flex items-center">
@@ -115,7 +138,6 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
             </section>
           )}
 
-          {/* Auth Section - Moved to bottom of scrollable content */}
           <section className="border-t border-[var(--border-color)] pt-6 mt-auto">
              <h3 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-3">Account</h3>
             {authLoading ? (
@@ -131,7 +153,7 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
                   </span>
                 </div>
                 <button 
-                    onClick={() => { signOutUser(); onClose(); }} 
+                    onClick={handleSignOut} 
                     className="w-full flex items-center justify-center text-sm text-[var(--primary-glow)] hover:underline py-2 rounded-md border border-[var(--primary-glow)] hover:bg-[var(--primary-glow)]/10"
                     aria-label="Logout"
                 >
@@ -140,7 +162,7 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
               </div>
             ) : (
               <button 
-                  onClick={() => setIsAuthModalOpen(true)}
+                  onClick={handleAuthModalOpen}
                   className="w-full flex items-center justify-center bg-[var(--primary-glow)] text-black px-3 py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity"
               >
                   <FiLogIn className="mr-2"/> Login / Sign Up
@@ -148,9 +170,8 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
             )}
           </section>
         </div>
-        {/* ImportantNoteFlyout removed from here */}
       </aside>
-      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => { setIsAuthModalOpen(false); /* onClose(); // Decided against auto-closing flyout */ }} />}
+      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={handleAuthModalClose} />}
     </>
   );
 };

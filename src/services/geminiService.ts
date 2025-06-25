@@ -6,15 +6,17 @@ import type { AnalysisReport } from '../types';
 const API_KEY = import.meta.env.VITE_API_KEY;
 
 if (!API_KEY) {
-  // This will be caught by the App component and shown to the user.
   throw new Error("VITE_API_KEY environment variable is not set. Please configure it in your .env file and on your deployment platform (e.g., Vercel) to use STREAKSENSE.");
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
-const modelName = 'gemini-2.5-flash-preview-04-17';
+const analysisModelName = 'gemini-2.5-flash-preview-04-17';
+const chatModelName = 'gemini-2.5-flash-preview-04-17'; // Can be the same or different
 
-const ROLE_BLOCK_CONTENT = `You are STREAKSENSE, an expert Major League Baseball (MLB) data analyst and a specialized API. Your sole purpose is to provide a detailed player performance analysis report for the "Beat the Streak" fantasy game. You are precise, data-driven, and provide your output in a strict JSON format.`;
 
+// --- For Analysis Report ---
+const ROLE_BLOCK_CONTENT_ANALYSIS = `You are STREAKSENSE, an expert Major League Baseball (MLB) data analyst and a specialized API. Your sole purpose is to provide a detailed player performance analysis report for the "Beat the Streak" fantasy game. You are precise, data-driven, and provide your output in a strict JSON format.`;
+// ... (rest of the analysis prompt blocks: CONTEXT_BLOCK_CONTENT, RULES_BLOCK_CONTENT, SCHEMA_BLOCK_CONTENT, TASK_BLOCK_CONTENT) remain the same
 const CONTEXT_BLOCK_CONTENT = (date: string, humanReadableDate: string) => `The user requires a comprehensive analysis report for MLB games scheduled on ${date} (formatted as ${humanReadableDate}). The report is used to identify top player picks for the "Beat the Streak" game, where the goal is to select a player who will get at least one hit. Your analysis must be deep, incorporating a wide range of metrics to justify your selections.`;
 
 const RULES_BLOCK_CONTENT = `1.  **JSON Only:** Your entire response MUST be a single, valid JSON object. It must start with '{' and end with '}'. Do not include any introductory text, explanations, apologies, or markdown code fences like \`\`\`json.
@@ -105,34 +107,31 @@ const SCHEMA_BLOCK_CONTENT = (humanReadableDate: string) => `You MUST generate a
 
 const TASK_BLOCK_CONTENT = (humanReadableDate: string) => `Now, generate the complete, valid JSON report for ${humanReadableDate} following all the rules and the exact schema provided above. Your entire output must be the JSON object itself, containing exactly 5 unique player recommendations. Each player MUST have an 'mlbId' if retrievable. Each player's 'team' and 'matchup.team' fields must be full team names. The \`playerSpecificVerdict\` for each recommendation must be a comprehensive, multi-section analysis formatted with Markdown as per Rule 3, including detailed pitcher information, BvP stats, and batter's last game performance.`;
 
-const constructPrompt = (date: string, humanReadableDate: string): string => {
-  return `<ROLE>
-${ROLE_BLOCK_CONTENT}
-</ROLE>
 
+const constructAnalysisPrompt = (date: string, humanReadableDate: string): string => {
+  return `<ROLE>
+${ROLE_BLOCK_CONTENT_ANALYSIS}
+</ROLE>
 <CONTEXT>
 ${CONTEXT_BLOCK_CONTENT(date, humanReadableDate)}
 </CONTEXT>
-
 <RULES>
 ${RULES_BLOCK_CONTENT}
 </RULES>
-
 <SCHEMA>
 ${SCHEMA_BLOCK_CONTENT(humanReadableDate)}
 </SCHEMA>
-
 <TASK>
 ${TASK_BLOCK_CONTENT(humanReadableDate)}
 </TASK>`;
 };
 
 export const fetchAnalysisForDate = async (date: string, humanReadableDate: string): Promise<AnalysisReport> => {
-  const prompt = constructPrompt(date, humanReadableDate);
+  const prompt = constructAnalysisPrompt(date, humanReadableDate);
   try {
     const result: GenerateContentResponse = await ai.models.generateContent({
-        model: modelName,
-        contents: [{ parts: [{ text: prompt }] }],
+        model: analysisModelName,
+        contents: [{ role: "user", parts: [{ text: prompt }] }], // Ensured contents matches structure for model
         config: {
              responseMimeType: "application/json",
              temperature: 0.4,
@@ -142,45 +141,125 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
     let jsonText = result.text;
 
     if (!jsonText) {
-      console.error("Received empty or undefined text response from AI.");
-      const fullResponse = JSON.stringify(result, null, 2);
-      console.error("Full AI Response:", fullResponse.substring(0, 1000));
-      throw new Error("Received empty response from AI. Check console for more details.");
+      console.error("Received empty or undefined text response from AI for analysis.");
+      // Log more details about the response if text is empty
+      if (result && result.candidates && result.candidates.length > 0) {
+        console.error("AI Analysis Response Candidate Details:", JSON.stringify(result.candidates[0], null, 2).substring(0,1000));
+        if (result.candidates[0].finishReason !== 'STOP') {
+             throw new Error(`AI analysis generation stopped prematurely due to: ${result.candidates[0].finishReason}. Check safety ratings or prompt complexity.`);
+        }
+      } else {
+         console.error("Full AI Analysis Response (if available):", JSON.stringify(result, null, 2).substring(0, 1000));
+      }
+      throw new Error("Received empty response from AI for analysis. Check console for details.");
     }
 
+    // Remove markdown fences if present
     const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
     const match = jsonText.match(fenceRegex);
     if (match && match[1]) {
       jsonText = match[1].trim();
     }
+    
+    // Additional check for potential Gemini prepended/appended text before/after JSON
+    if (!jsonText.startsWith('{') && jsonText.includes('{')) {
+        jsonText = jsonText.substring(jsonText.indexOf('{'));
+    }
+    if (!jsonText.endsWith('}') && jsonText.includes('}')) {
+        jsonText = jsonText.substring(0, jsonText.lastIndexOf('}') + 1);
+    }
+
 
     try {
       const parsedData: AnalysisReport = JSON.parse(jsonText);
-      if (!parsedData.recommendations || parsedData.recommendations.length !== 5) {
-        console.warn("Parsed data is missing 'recommendations' or does not have 5 items.", parsedData);
+      if (!parsedData.recommendations || parsedData.recommendations.length === 0) { // Allow for cases where AI might legitimately find 0, though prompt asks for 5
+        console.warn("Parsed analysis data is missing 'recommendations' or has zero items. Prompt asked for 5.", parsedData);
+      } else if (parsedData.recommendations.length !== 5) {
+        console.warn(`Parsed analysis data has ${parsedData.recommendations.length} recommendations, but prompt asked for 5.`, parsedData);
       }
-      if (parsedData.recommendations.some(p => !p.playerSpecificVerdict || p.playerSpecificVerdict.length < 50)) {
+
+      if (parsedData.recommendations && parsedData.recommendations.some(p => !p.playerSpecificVerdict || p.playerSpecificVerdict.length < 50)) {
          console.warn("Some recommendations have very short or missing 'playerSpecificVerdict'.", parsedData.recommendations.map(p=> ({player: p.player, verdictLength: p.playerSpecificVerdict?.length || 0 })));
       }
       return parsedData;
     } catch (e) {
-      console.error("Failed to parse JSON response:", e);
-      console.error("Problematic JSON string attempt:", jsonText.substring(0,1000) + "...");
+      console.error("Failed to parse JSON analysis response:", e);
+      console.error("Problematic JSON analysis string attempt:", jsonText.substring(0,1000) + "...");
       throw new Error(`Failed to parse analysis data from AI. Raw response snippet: ${jsonText.substring(0,500)}...`);
     }
 
   } catch (error) {
-    console.error('Error fetching data from Gemini:', error);
+    console.error('Error fetching analysis data from Gemini:', error);
     if (typeof error === 'object' && error !== null) {
-        console.error('Full error object:', JSON.stringify(error, null, 2));
+        // Attempt to log more structured error if available (e.g., from Gemini API client)
+        if ('message' in error) console.error('Error message:', (error as Error).message);
+        // console.error('Full analysis error object:', JSON.stringify(error, null, 2));
     }
 
+    let errorMessage = "Failed to fetch analysis data.";
     if (error instanceof Error) {
-        if (error.message.includes("candidate") || error.message.includes("block") || error.message.includes("safety")) { 
-            throw new Error("The AI model's response was blocked or incomplete, possibly due to safety settings or content policy. Please try a different query or date.");
+        errorMessage = error.message;
+        if (errorMessage.includes("candidate") || errorMessage.includes("block") || errorMessage.includes("safety") || errorMessage.includes("finishReason")) { 
+            errorMessage = "The AI model's analysis response was blocked or incomplete, possibly due to safety settings, content policy, or prompt complexity. Please try a different date or simplify the request if this persists.";
+        } else if (errorMessage.includes("API key")) {
+            errorMessage = "Invalid API Key. Please check your VITE_API_KEY configuration.";
         }
-        throw new Error(`Failed to fetch analysis data: ${error.message}`);
+    } else {
+        errorMessage = `An unknown error occurred: ${String(error)}`;
     }
-    throw new Error(`Failed to fetch analysis data: ${String(error)}`);
+    throw new Error(errorMessage);
+  }
+};
+
+// --- For Player Research Chat ---
+const PLAYER_RESEARCH_SYSTEM_INSTRUCTION = `You are a helpful and knowledgeable MLB (Major League Baseball) Player Research Assistant.
+Users will ask you questions about MLB players, including stats, recent performance, matchups, strengths, weaknesses, or comparisons.
+Provide concise, accurate, and informative answers based on your knowledge up to your last training data.
+Format your answers clearly. Use Markdown for light formatting like **bolding** key terms or player names, and bullet points for lists if appropriate.
+Do not make unsolicited pick recommendations for "Beat the Streak" or any other game unless the user explicitly asks you to evaluate a player *based on specific criteria they provide for such a game*.
+If you don't know an answer or if it's beyond your capabilities (e.g., real-time scores), say so politely.
+Keep responses focused on the user's query. Be friendly and conversational.`;
+
+export const fetchPlayerResearchResponse = async (userQuery: string): Promise<string> => {
+  try {
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: chatModelName,
+      contents: [{ role: "user", parts: [{ text: userQuery }] }],
+      config: {
+        systemInstruction: PLAYER_RESEARCH_SYSTEM_INSTRUCTION,
+        temperature: 0.7, // Allow for more conversational and varied responses
+        // Optional: Disable thinking for lower latency in chat, but may reduce quality.
+        // thinkingConfig: { thinkingBudget: 0 } 
+      }
+    });
+
+    if (!response.text) {
+      console.error("Received empty or undefined text response from AI for chat.");
+       if (response && response.candidates && response.candidates.length > 0) {
+        console.error("AI Chat Response Candidate Details:", JSON.stringify(response.candidates[0], null, 2).substring(0,1000));
+        if (response.candidates[0].finishReason !== 'STOP') {
+             return `I'm sorry, I couldn't fully process that. It seems the response was cut short due to: ${response.candidates[0].finishReason}. Could you try rephrasing?`;
+        }
+      } else {
+         console.error("Full AI Chat Response (if available):", JSON.stringify(response, null, 2).substring(0,1000));
+      }
+      return "I'm sorry, I couldn't generate a response right now. Please try again.";
+    }
+    return response.text;
+  } catch (error) {
+    console.error('Error fetching player research response from Gemini:', error);
+     if (typeof error === 'object' && error !== null) {
+        if ('message' in error) console.error('Error message:', (error as Error).message);
+        // console.error('Full chat error object:', JSON.stringify(error, null, 2));
+    }
+    let friendlyMessage = "I'm having trouble connecting to my knowledge base at the moment. Please try again in a few moments.";
+    if (error instanceof Error) {
+        if (error.message.includes("candidate") || error.message.includes("block") || error.message.includes("safety") || error.message.includes("finishReason")) {
+            friendlyMessage = "Sorry, my response was blocked or incomplete. This might be due to safety filters. Try rephrasing your question.";
+        } else if (error.message.includes("API key")) {
+            friendlyMessage = "There seems to be an issue with the API configuration. Please contact support.";
+        }
+    }
+    return friendlyMessage;
   }
 };

@@ -5,9 +5,10 @@ import { FiMenu, FiCalendar } from 'react-icons/fi';
 interface MobileHeaderProps {
   selectedDate: Date;
   onMenuToggle: () => void;
-  onDateChange: (date: Date) => void; // Added
-  maxDate: string; // Added
+  onDateChange: (date: Date) => void; 
+  maxDate: string; 
   className?: string;
+  onLogoClick?: () => void; // New: For navigating when logo is clicked
 }
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ 
@@ -15,7 +16,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   onMenuToggle, 
   onDateChange, 
   maxDate, 
-  className 
+  className,
+  onLogoClick
 }) => {
   const formattedDate = selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const dateInputId = "mobile-header-date-picker";
@@ -23,11 +25,9 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
-      // Dates from input type="date" are yyyy-mm-dd. Need to adjust for local timezone.
       const dateParts = dateValue.split('-').map(Number);
       const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
       
-      // Get user's current time to preserve it, avoiding timezone shifts to midnight UTC
       const userCurrentHours = selectedDate.getHours();
       const userCurrentMinutes = selectedDate.getMinutes();
       newSelectedDate.setHours(userCurrentHours, userCurrentMinutes, 0, 0);
@@ -38,7 +38,11 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
 
   return (
     <header className={`flex items-center justify-between p-4 text-[var(--text-primary)] ${className}`}>
-      <div className="flex items-center">
+      <div 
+        className={`flex items-center ${onLogoClick ? 'cursor-pointer' : ''}`}
+        onClick={onLogoClick}
+        title={onLogoClick ? "Go to Dashboard/Home" : "STREAKSENSE"}
+      >
         <h1 className="font-[var(--font-display)] font-bold text-2xl tracking-tight uppercase neon-text italic">
           STREAKSENSE
         </h1>
@@ -59,7 +63,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
             value={selectedDate.toISOString().split('T')[0]}
             max={maxDate}
             onChange={handleDateInputChange}
-            className="opacity-0 w-full h-full absolute top-0 left-0 cursor-pointer" // Covers the label to be clickable
+            className="opacity-0 w-full h-full absolute top-0 left-0 cursor-pointer"
             style={{ colorScheme: 'dark' }}
             aria-label="Select analysis date"
           />

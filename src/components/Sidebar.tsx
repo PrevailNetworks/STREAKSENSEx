@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import type { AnalysisReport, PlayerData, HonorableMention } from '../types';
-import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser } from 'react-icons/fi';
+import { FiChevronRight, FiAlertCircle, FiCalendar, FiLogIn, FiLogOut, FiUser, FiBarChart2 } from 'react-icons/fi'; // Added FiBarChart2
 import { AudioPlayer } from './AudioPlayer';
 import { Loader } from './Loader'; 
 import { useAuth } from '@/contexts/AuthContext'; 
-import { AuthModal } from './AuthModal'; 
+// AuthModal is no longer directly controlled by Sidebar, but by App
+// import { AuthModal } from './AuthModal'; 
 
 interface SidebarProps {
   selectedDate: Date;
@@ -14,8 +15,10 @@ interface SidebarProps {
   onPlayerSelect: (player: PlayerData) => void;
   selectedPlayerId?: string;
   isLoading: boolean;
-  maxDate: string; // Added maxDate prop
+  maxDate: string;
   className?: string;
+  onLogoClick?: () => void; // New: For navigating when logo is clicked
+  onOpenAuthModal: () => void; // New: To request App to open AuthModal
 }
 
 const ImportantNote: React.FC = () => (
@@ -76,20 +79,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onPlayerSelect, 
   selectedPlayerId, 
   isLoading,
-  maxDate, // Use passed maxDate
-  className 
+  maxDate, 
+  className,
+  onLogoClick,
+  onOpenAuthModal
 }) => {
   const { currentUser, signOutUser, loading: authLoading } = useAuth(); 
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); 
+  // const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // AuthModal is now controlled by App
 
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
-      // Dates from input type="date" are yyyy-mm-dd. Need to adjust for local timezone.
       const dateParts = dateValue.split('-').map(Number);
       const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
       
-      // Get user's current time to preserve it, avoiding timezone shifts to midnight UTC
       const userCurrentHours = selectedDate.getHours();
       const userCurrentMinutes = selectedDate.getMinutes();
       newSelectedDate.setHours(userCurrentHours, userCurrentMinutes, 0, 0);
@@ -102,7 +105,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <> 
       <aside className={`w-full md:w-80 lg:w-96 bg-[var(--sidebar-bg)] p-4 sm:p-6 text-[var(--text-primary)] border-r border-[var(--border-color)] flex flex-col h-full ${className}`}>
         <div className="flex-shrink-0">
-            <div className="logo text-left mb-6">
+            <div 
+              className={`logo text-left mb-6 ${onLogoClick ? 'cursor-pointer' : ''}`}
+              onClick={onLogoClick}
+              title={onLogoClick ? "Go to Dashboard/Home" : "STREAKSENSE"}
+            >
               <h1 className="font-[var(--font-display)] font-bold text-4xl tracking-tight uppercase neon-text italic">
                 STREAKSENSE
               </h1>
@@ -113,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           type="date"
                           id="sidebar-date-picker"
                           value={selectedDate.toISOString().split('T')[0]}
-                          max={maxDate} // Use prop
+                          max={maxDate} 
                           onChange={handleDateInputChange}
                           className="bg-transparent border-0 text-[var(--primary-glow)] p-0 text-xs font-semibold focus:outline-none focus:ring-0 appearance-none pr-5 cursor-pointer"
                           style={{ colorScheme: 'dark' }}
@@ -126,6 +133,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="flex-grow overflow-y-auto space-y-6 pr-1 pb-4">
+            {currentUser && onLogoClick && ( // Show "Go to Dashboard" if logged in and onLogoClick is defined (meaning on analytics page)
+                <button
+                    onClick={onLogoClick}
+                    className="w-full flex items-center justify-center bg-[var(--card-bg)] text-[var(--primary-glow)] px-3 py-2.5 rounded-md text-sm font-semibold hover:bg-[var(--selected-item-bg)] transition-colors mb-4"
+                >
+                    <FiUser className="mr-2"/> Go to My Dashboard
+                </button>
+            )}
             <section>
               <h2 className="text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Top Recommendations</h2>
               {isLoading ? (
@@ -204,7 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             ) : (
                 <button 
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={onOpenAuthModal} // Use prop to open modal
                     className="w-full flex items-center justify-center bg-[var(--primary-glow)] text-black px-3 py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity"
                 >
                     <FiLogIn className="mr-2"/> Login / Sign Up
@@ -212,7 +227,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
         </div>
       </aside>
-      {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />} 
+      {/* AuthModal is now rendered and controlled by App.tsx */}
+      {/* {isAuthModalOpen && <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />}  */}
     </> 
   );
 };

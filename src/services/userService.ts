@@ -1,7 +1,8 @@
 
 // src/services/userService.ts
 import { db } from '@/firebase';
-import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, Timestamp, serverTimestamp, query, orderBy, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, Timestamp, serverTimestamp, query, orderBy, updateDoc } from 'firebase/firestore';
+// Explicitly import ALL shared types from @/types
 import type { PlayerData, PlayerPickInfo, UserDailyPicksDocument, FavoritePlayer } from '@/types';
 
 const DAILY_PICKS_SUBCOLLECTION = 'dailyPicks';
@@ -17,12 +18,12 @@ export const addUserDailyPick = async (userId: string, dateKey: string, newPickD
     const pickToAdd: PlayerPickInfo = {
       ...newPickData,
       pickDate: dateKey,
-      pickedAt: new Date(), // Client-side timestamp for immediate use, server will set its own
+      pickedAt: new Date(), // Client-side timestamp for immediate use
     };
 
     if (docSnap.exists()) {
-      const existingData = docSnap.data() as UserDailyPicksDocument;
-      const existingPicks = existingData.picks || [];
+      const existingDocData = docSnap.data() as UserDailyPicksDocument; // Assume fetched data matches this type from types.ts
+      const existingPicks = existingDocData.picks || [];
 
       if (existingPicks.length >= 2) {
         return { success: false, message: "You already have two picks for this date. Remove one first.", picks: existingPicks };
@@ -39,15 +40,11 @@ export const addUserDailyPick = async (userId: string, dateKey: string, newPickD
       console.log(`User ${userId}'s pick for ${dateKey} (${newPickData.playerName}) added. Total picks: ${updatedPicks.length}`);
       return { success: true, message: `${newPickData.playerName} added as pick ${updatedPicks.length}.`, picks: updatedPicks };
     } else {
-      // No existing document, create it with the first pick
-      const newDocument: UserDailyPicksDocument = {
+      const newDocumentData: Omit<UserDailyPicksDocument, 'lastUpdatedAt'> & { lastUpdatedAt: unknown } = {
         picks: [pickToAdd],
-        lastUpdatedAt: new Date(), // serverTimestamp() will apply on write
-      };
-      await setDoc(pickDocRef, {
-        ...newDocument,
         lastUpdatedAt: serverTimestamp(),
-      });
+      };
+      await setDoc(pickDocRef, newDocumentData);
       console.log(`User ${userId}'s first pick for ${dateKey} (${newPickData.playerName}) saved.`);
       return { success: true, message: `${newPickData.playerName} added as pick 1.`, picks: [pickToAdd]};
     }
@@ -64,37 +61,20 @@ export const getUserDailyPicks = async (userId: string, dateKey: string): Promis
     const docSnap = await getDoc(pickDocRef);
 
     if (docSnap.exists()) {
-      const rawData = docSnap.data(); // rawData is firebase.firestore.DocumentData
+      const rawData = docSnap.data();
 
-      const processedPicks: PlayerPickInfo[] = (rawData.picks as any[] || []).map((p: any) => {
-        let pickedAtDate: Date;
-        if (p.pickedAt instanceof Timestamp) {
-          pickedAtDate = p.pickedAt.toDate();
-        } else if (p.pickedAt instanceof Date) {
-          pickedAtDate = p.pickedAt; // Already a Date
-        } else {
-          console.warn(`Pick ${p.playerId || 'unknown'} for date ${dateKey} has invalid pickedAt type:`, p.pickedAt, ". Using current date as fallback.");
-          pickedAtDate = new Date(); // Fallback for unexpected type
-        }
-        return {
-          playerId: p.playerId || '',
-          playerName: p.playerName || '',
-          team: p.team || '',
-          pickDate: p.pickDate || dateKey,
-          source: p.source || 'recommendation',
-          pickedAt: pickedAtDate,
-        } as PlayerPickInfo;
-      });
+      const processedPicks: PlayerPickInfo[] = (rawData.picks as any[] || []).map((p: any) => ({
+        playerId: p.playerId || '',
+        playerName: p.playerName || '',
+        team: p.team || '',
+        pickDate: p.pickDate || dateKey,
+        source: p.source || 'recommendation',
+        pickedAt: p.pickedAt instanceof Timestamp ? p.pickedAt.toDate() : (p.pickedAt instanceof Date ? p.pickedAt : new Date()),
+      } as PlayerPickInfo));
 
-      let lastUpdatedAtDate: Date;
-      if (rawData.lastUpdatedAt instanceof Timestamp) {
-        lastUpdatedAtDate = rawData.lastUpdatedAt.toDate();
-      } else if (rawData.lastUpdatedAt instanceof Date) {
-        lastUpdatedAtDate = rawData.lastUpdatedAt; // Already a Date
-      } else {
-        console.warn(`Document for date ${dateKey} has invalid lastUpdatedAt type:`, rawData.lastUpdatedAt, ". Using current date as fallback.");
-        lastUpdatedAtDate = new Date(); // Fallback for unexpected type
-      }
+      const lastUpdatedAtDate = rawData.lastUpdatedAt instanceof Timestamp 
+        ? rawData.lastUpdatedAt.toDate() 
+        : (rawData.lastUpdatedAt instanceof Date ? rawData.lastUpdatedAt : new Date());
 
       const result: UserDailyPicksDocument = {
         picks: processedPicks,
@@ -126,16 +106,13 @@ export const removeUserDailyPick = async (userId: string, dateKey: string, playe
       }
 
       if (updatedPicks.length === 0) {
-        // If all picks are removed, delete the document for that date
         await deleteDoc(pickDocRef);
-        console.log(`User ${userId}'s pick document for ${dateKey} removed as all picks deleted.`);
         return { success: true, message: "Pick removed. No picks remaining for this date.", picks: [] };
       } else {
         await updateDoc(pickDocRef, {
           picks: updatedPicks,
           lastUpdatedAt: serverTimestamp(),
         });
-        console.log(`User ${userId}'s pick (${playerIdToRemove}) for ${dateKey} removed.`);
         return { success: true, message: "Pick removed.", picks: updatedPicks };
       }
     } else {
@@ -147,12 +124,7 @@ export const removeUserDailyPick = async (userId: string, dateKey: string, playe
   }
 };
 
-
-// --- User Favorite Players ---
 const FAVORITE_PLAYERS_SUBCOLLECTION = 'favoritePlayers';
-
-// Note: The FavoritePlayer interface is now solely imported from '@/types'.
-// The local definition has been removed.
 
 export const addPlayerToFavorites = async (userId: string, playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>): Promise<void> => {
   const playerId = playerData.mlbId || playerData.player.toLowerCase().replace(/\s+/g, '-');
@@ -162,13 +134,12 @@ export const addPlayerToFavorites = async (userId: string, playerData: Pick<Play
   }
   try {
     const favoriteDocRef = doc(db, 'users', userId, FAVORITE_PLAYERS_SUBCOLLECTION, playerId);
-    // Ensure data confirms to FavoritePlayer from types.ts, adapting for Firestore Timestamps
-    const dataToSave: Omit<FavoritePlayer, 'addedAt'> & { addedAt: Timestamp } = {
+    const dataToSave: Omit<FavoritePlayer, 'addedAt'> & { addedAt: unknown } = { // Use unknown for serverTimestamp
       playerId: playerId,
-      playerName: playerData.player,
+      playerName: playerData.player, // This now matches FavoritePlayer's playerName from PlayerData's player
       team: playerData.team,
       mlbId: playerData.mlbId,
-      addedAt: serverTimestamp() as Timestamp, // Firestore expects Timestamp
+      addedAt: serverTimestamp(),
     };
     await setDoc(favoriteDocRef, dataToSave, { merge: true }); 
     console.log(`Player ${playerData.player} added to user ${userId}'s favorites.`);
@@ -202,22 +173,15 @@ export const getUserFavoritePlayers = async (userId: string): Promise<FavoritePl
     const favorites: FavoritePlayer[] = [];
     querySnapshot.forEach((docSnap) => { 
       const data = docSnap.data();
-      let addedAtDate: Date;
-      if (data.addedAt instanceof Timestamp) {
-        addedAtDate = data.addedAt.toDate();
-      } else if (data.addedAt instanceof Date) { // Should ideally always be Timestamp from server
-        addedAtDate = data.addedAt;
-      } else {
-        addedAtDate = new Date(); // Fallback, though ideally this case shouldn't happen
-        console.warn(`Favorite player ${docSnap.id} for user ${userId} has an unexpected addedAt type. Using current date as fallback.`);
-      }
+      const addedAtDate = data.addedAt instanceof Timestamp ? data.addedAt.toDate() : new Date();
+      
       favorites.push({ 
         playerId: docSnap.id,
         playerName: data.playerName,
         team: data.team,
         mlbId: data.mlbId,
         addedAt: addedAtDate 
-      } as FavoritePlayer);
+      } as FavoritePlayer); // Cast to ensure type conformity
     });
     return favorites;
   } catch (error) {

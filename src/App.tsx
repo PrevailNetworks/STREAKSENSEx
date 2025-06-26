@@ -6,7 +6,8 @@ import { Loader } from '@/components/Loader';
 import { fetchAnalysisForDate, fetchStructuredReportForPlayer } from './services/geminiService';
 import { getAnalysisReportFromFirestore, saveAnalysisReportToFirestore, FirestoreReportWithTimestamp, getAdditionalPlayerReport, saveAdditionalPlayerReport } from './services/firestoreService';
 import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, getUserFavoritePlayers, getUserDailyPicks, removeUserDailyPick as removePickService } from './services/userService';
-import type { AnalysisReport, PlayerData, PlayerPickInfo, FavoritePlayer } from './types';
+// Corrected type import for FavoritePlayer
+import type { AnalysisReport, PlayerData, PlayerPickInfo, FavoritePlayer } from './types'; 
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useAuth, EMAIL_FOR_SIGN_IN_LINK_KEY } from './contexts/AuthContext';
 import { MobileHeader } from './components/MobileHeader';
@@ -187,7 +188,7 @@ const App: React.FC = () => {
     try {
       const firestoreResult: FirestoreReportWithTimestamp | null = await getAnalysisReportFromFirestore(dateKey);
       let reportToSet: AnalysisReport | null = null;
-      let reportFetchedAt = new Date(); // Default to now
+      let reportFetchedAt = new Date(); 
 
       if (firestoreResult) {
         reportFetchedAt = firestoreResult.fetchedAt;
@@ -205,7 +206,7 @@ const App: React.FC = () => {
       } else { forceRefresh = true; }
 
       if (forceRefresh) {
-        reportFetchedAt = new Date(); // Update fetchedAt for fresh Gemini pull
+        reportFetchedAt = new Date(); 
         const geminiData = await fetchAnalysisForDate(dateKey, humanReadable);
         reportToSet = geminiData;
         if (geminiData && geminiData.recommendations && geminiData.recommendations.length > 0) {
@@ -214,7 +215,6 @@ const App: React.FC = () => {
         }
       }
       
-      // Stamp fetchedAt onto individual recommendations
       if (reportToSet && reportToSet.recommendations) {
         reportToSet.recommendations.forEach(rec => rec.fetchedAt = reportFetchedAt);
       }
@@ -254,7 +254,7 @@ const App: React.FC = () => {
         setCurrentView('analytics');
     }
     setIsFlyoutOpen(false);
-    setIsChatPanelOpen(false); // Close chat panel on date change
+    setIsChatPanelOpen(false); 
   };
   
   const handleMobileHeaderDateChange = (date: Date) => {
@@ -266,7 +266,7 @@ const App: React.FC = () => {
     setSelectedPlayer(player);
     setResearchedPlayerDataToDisplay(null); 
     setCurrentView('analytics'); 
-    setIsChatPanelOpen(false); // Close chat panel when a player is selected from main list
+    setIsChatPanelOpen(false); 
   };
   
   const openAuthModal = (triggeredFromView?: AppView) => {
@@ -275,11 +275,10 @@ const App: React.FC = () => {
   };
   
   const handleSetCurrentView = (view: AppView) => {
-    if (view !== 'researchedPlayer' && view !== currentView) { // Only close if not staying on researched player
+    if (view !== 'researchedPlayer' && view !== currentView) { 
         setResearchedPlayerDataToDisplay(null);
     }
-    // Auto-close chat panel when changing main views, unless specifically opening it or going to researched player
-    if (view !== 'researchedPlayer' && view !== currentView) { // if view changes and it's not TO researched player
+    if (view !== 'researchedPlayer' && view !== currentView) { 
         setIsChatPanelOpen(false);
     }
     setCurrentView(view);
@@ -293,11 +292,11 @@ const App: React.FC = () => {
         if (mainRec && mainRec.playerSpecificVerdict) return mainRec;
     }
     
-    let report = await getAdditionalPlayerReport(forDateKey, playerId); // This should now return fetchedAt
+    let report = await getAdditionalPlayerReport(forDateKey, playerId); 
     if (report) return report;
     
     console.log(`Report not found in cache for ${playerData.player} on ${forDateKey}, fetching from Gemini...`);
-    report = await fetchStructuredReportForPlayer(playerData.player, forDateKey, forHumanReadableDate); // This will add fetchedAt
+    report = await fetchStructuredReportForPlayer(playerData.player, forDateKey, forHumanReadableDate); 
     if (report) {
       await saveAdditionalPlayerReport(forDateKey, playerId, report);
       return report;
@@ -354,26 +353,30 @@ const App: React.FC = () => {
             return newMap;
         });
         setFavoritePlayersList(prevList => prevList.filter(p => p.playerId !== playerId));
-        alert(`${playerData.player} removed from favorites.`);
+        alert(`${playerData.player} removed from favorites.`); // This is line 366
       } else if (fullReport) {
         const favToAdd: FavoritePlayer = {
             playerId: playerId,
-            playerName: fullReport.player, // Corrected from 'player' to 'playerName'
+            playerName: fullReport.player,
             team: fullReport.team,
             mlbId: fullReport.mlbId,
-            addedAt: new Date() // Client-side addedAt, server will set its own
+            addedAt: new Date()
         };
-        await addPlayerToFavorites(currentUser.uid, favToAdd);
+        await addPlayerToFavorites(currentUser.uid, { 
+            player: fullReport.player, 
+            team: fullReport.team, 
+            mlbId: fullReport.mlbId 
+        });
         setFavoritePlayersMap(prev => ({ ...prev, [playerId]: true }));
         setFavoritePlayersList(prevList => [...prevList, favToAdd]);
-        alert(`${playerData.player} added to favorites!`);
+        alert(`${fullReport.player} added to favorites!`);
       }
     } catch (e) { console.error("Error toggling favorite:", e); alert(`Failed to update favorites for ${playerData.player}.`); }
   };
 
   const handleViewPlayerAnalytics = async (playerInfo: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, dateForAnalysis: Date) => {
     setIsLoading(true);
-    setIsChatPanelOpen(false); // Close chat when viewing analytics
+    setIsChatPanelOpen(false); 
     setCurrentView('analytics'); 
     setSelectedDate(dateForAnalysis); 
     
@@ -401,7 +404,6 @@ const App: React.FC = () => {
     setSelectedPlayer(null); 
     setAnalysisData(null); 
     setCurrentView('researchedPlayer');
-    // Chat panel remains open when a researched player is displayed
   };
 
   const handleToggleChatPanel = () => {

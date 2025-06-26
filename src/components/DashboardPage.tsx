@@ -4,6 +4,7 @@ import type { User } from 'firebase/auth';
 import { FiUser, FiCalendar, FiTrendingUp, FiList, FiMessageSquare, FiUploadCloud, FiSettings, FiLogOut, FiBarChart2, FiEdit3, FiEye, FiHeart, FiLoader, FiXCircle, FiPlusCircle, FiUsers, FiAward } from 'react-icons/fi';
 import { formatDateForDisplay, formatDateForKey } from '@/utils/dateUtils';
 import { getUserDailyPicks, addUserDailyPick, removeUserDailyPick as removePickService, getUserFavoritePlayers } from '@/services/userService';
+// Corrected type imports to point to @/types
 import type { PlayerData, PlayerPickInfo, FavoritePlayer, UserDailyPicksDocument } from '@/types';
 import { Loader } from '@/components/Loader';
 
@@ -13,10 +14,9 @@ interface DashboardPageProps {
   selectedDate: Date;
   onViewPlayerAnalytics: (playerInfo: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, date: Date) => Promise<void>;
   onLogout: () => void;
-  // onOpenResearchChat: () => void; // Removed, ChatPanel is persistent
   favoritePlayers: FavoritePlayer[];
   handleToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
-  onDateChange: (date: Date) => void; // Added to allow dashboard to change app's date
+  onDateChange: (date: Date) => void;
 }
 
 const DashboardSection: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; comingSoon?: boolean; className?: string }> = ({ title, icon, children, comingSoon, className = "" }) => (
@@ -37,7 +37,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     selectedDate,
     onViewPlayerAnalytics,
     onLogout,
-    // onOpenResearchChat, // Removed
     handleToggleFavorite,
     onDateChange
 }) => {
@@ -47,7 +46,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [favoritesList, setFavoritesList] = useState<FavoritePlayer[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState<boolean>(true);
 
-  const maxDate = new Date().toISOString().split('T')[0]; // For date picker
+  const maxDate = new Date().toISOString().split('T')[0];
 
   const fetchPicks = useCallback(() => {
     if(currentUser && selectedDate) {
@@ -80,7 +79,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       const userCurrentHours = selectedDate.getHours();
       const userCurrentMinutes = selectedDate.getMinutes();
       newSelectedDate.setHours(userCurrentHours, userCurrentMinutes, 0, 0);
-      onDateChange(newSelectedDate); // Update app's selectedDate
+      onDateChange(newSelectedDate);
     }
   };
 
@@ -138,14 +137,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   };
   
-  const handleViewPickAnalysis = (pick: PlayerPickInfo) => {
+  const handleViewPickAnalysis = (pick: PlayerPickInfo) => { // Explicitly type 'pick'
     onViewPlayerAnalytics(
       { player: pick.playerName, team: pick.team, mlbId: pick.playerId.includes('-') ? undefined : pick.playerId },
       selectedDate
     );
   };
   
-  const handleViewFavoriteAnalysis = (fav: FavoritePlayer) => {
+  const handleViewFavoriteAnalysis = (fav: FavoritePlayer) => { // 'fav' is already correctly typed by prop
      onViewPlayerAnalytics(
         { player: fav.playerName, team: fav.team, mlbId: fav.mlbId },
         selectedDate
@@ -156,7 +155,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   return (
     <div className="min-h-screen bg-[var(--main-bg)] text-[var(--text-primary)] p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto"> {/* Constrain width */}
+      <div className="max-w-7xl mx-auto">
         <header className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div>
               <h1 className="font-[var(--font-display)] text-3xl sm:text-4xl neon-text italic">My Dashboard</h1>
@@ -178,7 +177,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
         </header>
 
-        {/* Dashboard Date Picker */}
         <div className="mb-6">
             <label htmlFor="dashboard-date-picker" className="block text-sm font-semibold uppercase text-[var(--text-secondary)] tracking-wider mb-2">Dashboard Date</label>
             <div className="relative flex items-center group bg-[var(--card-bg)] p-2.5 rounded-md border border-[var(--border-color)] max-w-xs">
@@ -196,7 +194,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
         </div>
 
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <DashboardSection title={`My Picks (${formatDateForDisplay(selectedDate)})`} icon={<FiTrendingUp />} className="lg:col-span-2">
             {pickLoading && !currentPicksDoc ? (
@@ -204,7 +201,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             ) : (
               <div className="space-y-4">
                 {picksForDay.length > 0 ? (
-                  picksForDay.map((pick: PlayerPickInfo, index: number) => (
+                  picksForDay.map((pick: PlayerPickInfo, index: number) => ( // Explicitly type 'pick' and 'index'
                     <div key={pick.playerId} className="p-3 bg-[var(--sidebar-bg)] rounded-md border border-[var(--border-color)]">
                       <div className="flex justify-between items-center">
                         <div>
@@ -260,7 +257,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <div className="flex justify-center items-center py-4"><Loader message="Loading favorites..."/></div>
             ) : favoritesList.length > 0 ? (
               <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                {favoritesList.map(fav => (
+                {favoritesList.map((fav: FavoritePlayer) => ( // Explicitly type 'fav'
                   <li key={fav.playerId} className="flex items-center justify-between p-2.5 bg-[var(--main-bg)] rounded-md border border-[var(--border-color)]">
                     <div>
                       <p className="text-[var(--text-primary)] font-medium">{fav.playerName}</p>

@@ -22,7 +22,7 @@ import { formatDateForDisplay, formatDateForKey, formatDateToMMDDYY } from './ut
 
 
 const STALE_THRESHOLD_HOURS = 4;
-const REFRESH_CUTOFF_UTC_HOUR = 23;
+const REFRESH_CUTOFF_UTC_HOUR = 23; // Refresh if data is stale and current UTC hour is before 11 PM UTC
 
 export type AppView = 'landing' | 'dashboard' | 'analytics' | 'researchedPlayer';
 
@@ -40,6 +40,7 @@ const App: React.FC = () => {
 
   const [isChatPanelOpen, setIsChatPanelOpen] = useState<boolean>(false);
   const [researchedPlayerDataToDisplay, setResearchedPlayerDataToDisplay] = useState<PlayerData | null>(null);
+  const [recentResearchHistory, setRecentResearchHistory] = useState<PlayerData[]>([]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
@@ -57,6 +58,28 @@ const App: React.FC = () => {
 
   const today = new Date();
   const maxDate = today.toISOString().split('T')[0];
+
+  // Recent Research History Load/Save
+  useEffect(() => {
+    const storedHistory = localStorage.getItem('streaksense_recentResearch');
+    if (storedHistory) {
+      try {
+        setRecentResearchHistory(JSON.parse(storedHistory));
+      } catch (e) {
+        console.error("Error parsing recent research history from localStorage:", e);
+        localStorage.removeItem('streaksense_recentResearch');
+      }
+    }
+  }, []);
+
+  const updateRecentResearchHistory = (playerData: PlayerData) => {
+    setRecentResearchHistory(prevHistory => {
+      const newHistory = [playerData, ...prevHistory.filter(p => p.mlbId !== playerData.mlbId && p.player !== playerData.player)].slice(0, 5);
+      localStorage.setItem('streaksense_recentResearch', JSON.stringify(newHistory));
+      return newHistory;
+    });
+  };
+
 
   useEffect(() => {
     if (typeof Audio !== 'undefined' && !audioRef.current) {
@@ -249,18 +272,22 @@ const App: React.FC = () => {
   }, [selectedDate, currentView, authLoading]);
 
   const handleDateChange = (date: Date) => {
-    setSelectedDate(date);
+    // Ensure the date is set to local midnight to avoid timezone shifts showing previous/next day
+    const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    setSelectedDate(localDate);
     if (currentView === 'researchedPlayer') {
         setCurrentView('analytics');
     }
     setIsFlyoutOpen(false);
-    setIsChatPanelOpen(false); 
+    // setIsChatPanelOpen(false); // Do not auto-close chat on simple date change
   };
   
   const handleMobileHeaderDateChange = (date: Date) => {
-    setSelectedDateForAudio(date);
-    handleDateChange(date);
+    const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    setSelectedDateForAudio(localDate);
+    handleDateChange(localDate);
   };
+
 
   const handlePlayerSelect = (player: PlayerData) => {
     setSelectedPlayer(player);
@@ -278,8 +305,9 @@ const App: React.FC = () => {
     if (view !== 'researchedPlayer' && view !== currentView) { 
         setResearchedPlayerDataToDisplay(null);
     }
-    if (view !== 'researchedPlayer' && view !== currentView) { 
-        setIsChatPanelOpen(false);
+    // Auto-close chat panel when changing main views, unless the action is to open/toggle it
+    if (view !== currentView && view !== 'researchedPlayer') {
+      setIsChatPanelOpen(false);
     }
     setCurrentView(view);
   };
@@ -287,17 +315,19 @@ const App: React.FC = () => {
   const ensureStructuredReport = async (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, forDateKey: string, forHumanReadableDate: string): Promise<PlayerData | null> => {
     const playerId = playerData.mlbId || playerData.player.toLowerCase().replace(/\s+/g, '-');
     
-    if (formatDateForKey(selectedDate) === forDateKey && analysisData) {
+    // Check if the player is in the current main analysis data if date matches
+    if (formatDateForKey(selectedDate) === forDateKey && analysisData && currentView === 'analytics') {
         const mainRec = analysisData.recommendations.find(p => (p.mlbId === playerId) || (p.player === playerData.player && p.team === playerData.team));
-        if (mainRec && mainRec.playerSpecificVerdict) return mainRec;
+        if (mainRec && mainRec.playerSpecificVerdict) return mainRec; // Ensure fetchedAt is stamped by loadData
     }
     
     let report = await getAdditionalPlayerReport(forDateKey, playerId); 
-    if (report) return report;
+    if (report && report.fetchedAt) return report; // Already includes fetchedAt
     
-    console.log(`Report not found in cache for ${playerData.player} on ${forDateKey}, fetching from Gemini...`);
+    console.log(`Report not found/stale for ${playerData.player} on ${forDateKey}, fetching from Gemini...`);
     report = await fetchStructuredReportForPlayer(playerData.player, forDateKey, forHumanReadableDate); 
     if (report) {
+      report.fetchedAt = new Date(); // Stamp fresh fetch time
       await saveAdditionalPlayerReport(forDateKey, playerId, report);
       return report;
     }
@@ -353,11 +383,11 @@ const App: React.FC = () => {
             return newMap;
         });
         setFavoritePlayersList(prevList => prevList.filter(p => p.playerId !== playerId));
-        alert(`${playerData.player} removed from favorites.`); // This is line 366
+        alert(`${playerData.player} removed from favorites.`);
       } else if (fullReport) {
         const favToAdd: FavoritePlayer = {
             playerId: playerId,
-            playerName: fullReport.player,
+            playerName: fullReport.player, // Use from fullReport for consistency
             team: fullReport.team,
             mlbId: fullReport.mlbId,
             addedAt: new Date()
@@ -369,6 +399,7 @@ const App: React.FC = () => {
         });
         setFavoritePlayersMap(prev => ({ ...prev, [playerId]: true }));
         setFavoritePlayersList(prevList => [...prevList, favToAdd]);
+        // Use fullReport.player for consistency in alert
         alert(`${fullReport.player} added to favorites!`);
       }
     } catch (e) { console.error("Error toggling favorite:", e); alert(`Failed to update favorites for ${playerData.player}.`); }
@@ -376,15 +407,19 @@ const App: React.FC = () => {
 
   const handleViewPlayerAnalytics = async (playerInfo: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, dateForAnalysis: Date) => {
     setIsLoading(true);
-    setIsChatPanelOpen(false); 
+    //setIsChatPanelOpen(false); // Do not close chat if user explicitly wants to view analysis
     setCurrentView('analytics'); 
-    setSelectedDate(dateForAnalysis); 
     
-    const dateKey = formatDateForKey(dateForAnalysis);
-    const humanReadable = formatDateForDisplay(dateForAnalysis);
+    // Ensure the date is set to local midnight
+    const localDateForAnalysis = new Date(dateForAnalysis.getFullYear(), dateForAnalysis.getMonth(), dateForAnalysis.getDate());
+    setSelectedDate(localDateForAnalysis); 
+    
+    const dateKey = formatDateForKey(localDateForAnalysis);
+    const humanReadable = formatDateForDisplay(localDateForAnalysis);
 
-    if (!analysisData || formatDateForKey(selectedDate) !== dateKey || currentView !== 'analytics') {
-      await loadData(dateForAnalysis); 
+    // Force loadData if date or main data context is different
+    if (!analysisData || formatDateForKey(selectedDate) !== dateKey || !analysisData.recommendations.find(p => p.mlbId === playerInfo.mlbId || p.player === playerInfo.player)) {
+      await loadData(localDateForAnalysis); 
     }
     
     const fullReport = await ensureStructuredReport(playerInfo, dateKey, humanReadable);
@@ -404,6 +439,7 @@ const App: React.FC = () => {
     setSelectedPlayer(null); 
     setAnalysisData(null); 
     setCurrentView('researchedPlayer');
+    updateRecentResearchHistory(playerData); // Add to history
   };
 
   const handleToggleChatPanel = () => {
@@ -525,6 +561,8 @@ const App: React.FC = () => {
           onLogout={async () => { await signOutUser(); handleSetCurrentView('landing'); setIsChatPanelOpen(false);}}
           onOpenAuthModal={() => openAuthModal()}
           onToggleChatPanel={handleToggleChatPanel}
+          recentResearchHistory={recentResearchHistory}
+          onViewResearchedPlayer={handleDisplayResearchedPlayer}
         />
         <MobileHeader
           selectedDate={selectedDateForAudio}
@@ -558,7 +596,7 @@ const App: React.FC = () => {
         
         {currentUser && isChatPanelOpen && (
             <ChatPanel
-                className="hidden md:flex" 
+                className="hidden md:flex flex-shrink-0" // Add flex-shrink-0
                 selectedDate={selectedDate}
                 onDisplayResearchedPlayer={handleDisplayResearchedPlayer}
                 onSetPick={handleSetPick}
@@ -569,7 +607,7 @@ const App: React.FC = () => {
             />
         )}
 
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isChatPanelOpen && currentUser ? 'md:ml-0' : ''}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}> {/* Removed ml adjustment based on ChatPanelOpen */}
           {mainContentArea}
         </div>
       </div>

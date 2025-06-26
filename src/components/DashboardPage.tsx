@@ -74,11 +74,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const handleDashboardDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
-      const dateParts = dateValue.split('-').map(Number);
-      const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-      const userCurrentHours = selectedDate.getHours();
-      const userCurrentMinutes = selectedDate.getMinutes();
-      newSelectedDate.setHours(userCurrentHours, userCurrentMinutes, 0, 0);
+      const [year, month, day] = dateValue.split('-').map(Number);
+      // Construct date as local midnight
+      const newSelectedDate = new Date(year, month - 1, day);
       onDateChange(newSelectedDate);
     }
   };
@@ -137,14 +135,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   };
   
-  const handleViewPickAnalysis = (pick: PlayerPickInfo) => { // Explicitly type 'pick'
+  const handleViewPickAnalysis = (pick: PlayerPickInfo) => { 
     onViewPlayerAnalytics(
       { player: pick.playerName, team: pick.team, mlbId: pick.playerId.includes('-') ? undefined : pick.playerId },
       selectedDate
     );
   };
   
-  const handleViewFavoriteAnalysis = (fav: FavoritePlayer) => { // 'fav' is already correctly typed by prop
+  const handleViewFavoriteAnalysis = (fav: FavoritePlayer) => { 
      onViewPlayerAnalytics(
         { player: fav.playerName, team: fav.team, mlbId: fav.mlbId },
         selectedDate
@@ -201,7 +199,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             ) : (
               <div className="space-y-4">
                 {picksForDay.length > 0 ? (
-                  picksForDay.map((pick: PlayerPickInfo, index: number) => ( // Explicitly type 'pick' and 'index'
+                  picksForDay.map((pick: PlayerPickInfo, index: number) => ( 
                     <div key={pick.playerId} className="p-3 bg-[var(--sidebar-bg)] rounded-md border border-[var(--border-color)]">
                       <div className="flex justify-between items-center">
                         <div>
@@ -257,7 +255,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <div className="flex justify-center items-center py-4"><Loader message="Loading favorites..."/></div>
             ) : favoritesList.length > 0 ? (
               <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                {favoritesList.map((fav: FavoritePlayer) => ( // Explicitly type 'fav'
+                {favoritesList.map((fav: FavoritePlayer) => ( 
                   <li key={fav.playerId} className="flex items-center justify-between p-2.5 bg-[var(--main-bg)] rounded-md border border-[var(--border-color)]">
                     <div>
                       <p className="text-[var(--text-primary)] font-medium">{fav.playerName}</p>

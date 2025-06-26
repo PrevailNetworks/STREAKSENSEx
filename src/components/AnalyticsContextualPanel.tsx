@@ -154,11 +154,9 @@ export const AnalyticsContextualPanel: React.FC<AnalyticsContextualPanelProps> =
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
-      const dateParts = dateValue.split('-').map(Number);
-      const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-      const userCurrentHours = selectedDate.getHours();
-      const userCurrentMinutes = selectedDate.getMinutes();
-      newSelectedDate.setHours(userCurrentHours, userCurrentMinutes, 0, 0);
+      const [year, month, day] = dateValue.split('-').map(Number);
+      // Construct date as local midnight to avoid timezone issues
+      const newSelectedDate = new Date(year, month - 1, day);
       onDateChange(newSelectedDate);
     }
   };

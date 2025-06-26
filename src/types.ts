@@ -1,4 +1,5 @@
 
+
 export interface KeyTableSynopsisData {
   player: string;
   team: string; // Full team name, e.g., "Los Angeles Dodgers"

@@ -1,6 +1,6 @@
 
 import React, { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
-import { FiSend, FiLoader, FiMessageSquare, FiUser, FiCpu, FiCheckSquare, FiHeart, FiAlertCircle, FiClipboard, FiX } from 'react-icons/fi'; // Added FiX
+import { FiSend, FiLoader, FiMessageSquare, FiUser, FiCpu, FiCheckSquare, FiHeart, FiAlertCircle, FiClipboard, FiX } from 'react-icons/fi';
 import { fetchPlayerResearchResponse, fetchStructuredReportForPlayer } from '@/services/geminiService';
 import { getAdditionalPlayerReport, saveAdditionalPlayerReport } from '@/services/firestoreService';
 import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, isPlayerFavorite } from '@/services/userService';
@@ -16,7 +16,7 @@ interface ChatPanelProps {
   onToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
   favoritePlayersMap: Record<string, boolean>;
   onOpenAuthModal: () => void;
-  onClose: () => void; // Added onClose prop
+  onClose: () => void;
 }
 
 interface ChatMessage {
@@ -67,7 +67,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onToggleFavorite,
   favoritePlayersMap,
   onOpenAuthModal,
-  onClose, // Destructure onClose
+  onClose,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuery, setCurrentQuery] = useState('');
@@ -76,10 +76,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [actionLoading, setActionLoading] = useState<string | null>(null); 
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollableMessagesRef = useRef<HTMLDivElement>(null); // Ref for the scrollable message area
   const { currentUser } = useAuth();
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollableMessagesRef.current) {
+        scrollableMessagesRef.current.scrollTop = scrollableMessagesRef.current.scrollHeight;
+    }
   }, []);
 
   useEffect(scrollToBottom, [messages, scrollToBottom]);
@@ -171,7 +174,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   return (
-    <div className={`w-80 bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] p-4 flex flex-col h-full ${className}`}>
+    <div className={`w-80 bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] p-4 flex flex-col h-screen max-h-screen ${className}`}> {/* Ensure fixed height */}
       <header className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--border-color)] flex-shrink-0">
         <div className="flex items-center">
           <FiMessageSquare className="w-5 h-5 text-[var(--primary-glow)] mr-2" />
@@ -183,12 +186,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       </header>
 
       {actionError && (
-        <div className="bg-red-900/30 border border-red-700 text-red-300 p-2 rounded-md text-xs mb-2 flex items-center">
+        <div className="bg-red-900/30 border border-red-700 text-red-300 p-2 rounded-md text-xs mb-2 flex items-center flex-shrink-0">
           <FiAlertCircle className="mr-1.5 shrink-0" /> {actionError}
         </div>
       )}
 
-      <div className="flex-grow overflow-y-auto space-y-3 pr-1.5 mb-3 custom-scrollbar">
+      {/* This div will handle the scrolling of messages */}
+      <div ref={scrollableMessagesRef} className="flex-grow overflow-y-auto space-y-3 pr-1.5 mb-3 custom-scrollbar">
         {messages.map((msg) => (
           <div key={msg.id}>
             <div className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -249,7 +253,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             )}
           </div>
         ))}
-        <div ref={messagesEndRef} />
+        {/* The messagesEndRef does not need to be inside the map, but it's fine here as part of the overall strategy */}
+        <div ref={messagesEndRef} /> 
       </div>
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-3 border-t border-[var(--border-color)] flex-shrink-0">

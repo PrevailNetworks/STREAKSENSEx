@@ -35,10 +35,9 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   const handleDateInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const dateValue = event.target.value;
     if (dateValue) {
-      const dateParts = dateValue.split('-').map(Number);
-      // Preserve time from original selectedDate to avoid timezone shifts if only date changes
-      const originalTime = new Date(selectedDate);
-      const newSelectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], originalTime.getHours(), originalTime.getMinutes(), originalTime.getSeconds());
+      const [year, month, day] = dateValue.split('-').map(Number);
+      // Construct date as local midnight
+      const newSelectedDate = new Date(year, month - 1, day);
       onDateChange(newSelectedDate);
     }
   };

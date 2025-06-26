@@ -1,9 +1,11 @@
 
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react'; 
 import type { PlayerData, StatcastMetric } from '../types';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, Cell } from 'recharts';
-import { FiInfo, FiMapPin, FiSun, FiWind, FiUsers, FiTrendingUp, FiBarChart2, FiUser, FiWatch } from 'react-icons/fi';
+import { FiInfo, FiMapPin, FiSun, FiWind, FiUsers, FiTrendingUp, FiBarChart2, FiUser, FiWatch, FiRefreshCw, FiClock } from 'react-icons/fi'; // Added FiRefreshCw, FiClock
 import MarkdownRenderer from './MarkdownRenderer';
+import { formatDateForDisplay } from '@/utils/dateUtils';
+
 
 interface MainDisplayProps {
   player: PlayerData;
@@ -66,10 +68,10 @@ const PITCHER_ARSENAL_COLORS = ['#a3e635', '#84cc16', '#6ca112', '#4d7c0f', '#36
 const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, size = "w-16 h-16 sm:w-20 sm:h-20" }) => {
   const [imageError, setImageError] = useState(false);
   const initials = player.player.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  const imageKey = player.mlbId || player.imageUrl || player.player; // Unique key for re-render
+  const imageKey = player.mlbId || player.imageUrl || player.player; 
 
   useEffect(() => {
-    setImageError(false); // Reset error state when player image source changes
+    setImageError(false); 
   }, [imageKey]);
 
   const handleImageError = () => {
@@ -88,7 +90,7 @@ const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, 
   
   if (imageUrlToLoad && !imageError) {
     return <img 
-             key={imageKey} // Add key here
+             key={imageKey} 
              src={imageUrlToLoad} 
              alt={player.player} 
              className={`${size} rounded-full object-cover mr-4 border-2 border-[var(--border-color)] shadow-md`}
@@ -97,7 +99,7 @@ const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, 
   }
 
   return (
-    <div key={`${imageKey}-initials`} // Add key here
+    <div key={`${imageKey}-initials`} 
       className={`${size} rounded-full bg-[var(--card-bg)] border-2 border-[var(--border-color)] flex items-center justify-center text-[var(--primary-glow)] font-bold text-xl sm:text-2xl mr-4 shadow-md`}>
       {initials || <FiUser size={Math.floor(parseInt(size.split('-')[1] || '16') / 2) || 24} />}
     </div>
@@ -106,7 +108,7 @@ const PlayerImage: React.FC<{ player: PlayerData, size?: string }> = ({ player, 
 
 
 export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) => {
-  const { matchup, synthesis, finalVerdict, playerSpecificVerdict } = player;
+  const { matchup, synthesis, finalVerdict, playerSpecificVerdict, fetchedAt } = player;
 
   const probabilityGaugeData = [{ name: 'Probability', value: finalVerdict.compositeHitProbability }];
   
@@ -125,7 +127,7 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
 
   const pitcherArsenalData = matchup.pitchVulnerabilities?.map((pitch, index) => ({
       name: pitch.pitchType,
-      vulnerability: pitch.vulnerabilityScore * 100, // Assuming score is 0-1, convert to 0-100
+      vulnerability: pitch.vulnerabilityScore * 100, 
       color: PITCHER_ARSENAL_COLORS[index % PITCHER_ARSENAL_COLORS.length]
   })) || [];
 
@@ -141,10 +143,25 @@ export const MainDisplay: React.FC<MainDisplayProps> = ({ player, reportDate }) 
         </div>
          <div className="mt-3 sm:mt-0 text-right">
              <span className="block text-xs text-[var(--text-secondary)]">Report Date</span>
-             <span className="text-sm font-semibold text-[var(--text-primary)]">{reportDate}</span>
+             <span className="text-sm font-semibold text-[var(--text-primary)] mb-1">{reportDate}</span>
+             {fetchedAt && (
+                <div className="text-xs text-[var(--text-secondary)] flex items-center justify-end mt-0.5">
+                    <FiClock size={10} className="mr-1 opacity-70"/> 
+                    Generated: {formatDateForDisplay(fetchedAt)} at {fetchedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+             )}
          </div>
       </header>
       
+      <div className="flex justify-end mb-4 -mt-4">
+        <button 
+          onClick={() => alert("Refresh report feature coming soon!")}
+          className="flex items-center text-xs text-[var(--text-secondary)] hover:text-[var(--primary-glow)] py-1 px-2 rounded-md border border-[var(--border-color)] hover:border-[var(--primary-glow)] transition-colors"
+        >
+          <FiRefreshCw size={12} className="mr-1.5"/> Refresh Report
+        </button>
+      </div>
+
       <section className="bg-[var(--card-bg)] p-4 sm:p-6 rounded-lg shadow-xl border border-[var(--border-color)]">
         <MarkdownRenderer content={playerSpecificVerdict || "Detailed analysis for this player is currently unavailable."} />
       </section>

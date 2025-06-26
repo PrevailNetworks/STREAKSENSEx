@@ -15,7 +15,7 @@ import { MobilePlayerPicker } from './components/MobilePlayerPicker';
 import { LandingPage } from './components/LandingPage';
 import { DashboardPage } from './components/DashboardPage';
 import { AuthModal } from './components/AuthModal';
-import { ChatPanel } from './components/ChatPanel'; // New ChatPanel import
+import { ChatPanel } from './components/ChatPanel';
 import { PrimaryNavigation } from './components/PrimaryNavigation';
 import { formatDateForDisplay, formatDateForKey, formatDateToMMDDYY } from './utils/dateUtils';
 
@@ -37,8 +37,7 @@ const App: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authTriggerView, setAuthTriggerView] = useState<AppView | null>(null);
 
-  // State for the new ChatPanel and displaying its results
-  const [isChatPanelOpen, setIsChatPanelOpen] = useState<boolean>(true); // Or manage open/close state
+  const [isChatPanelOpen, setIsChatPanelOpen] = useState<boolean>(false);
   const [researchedPlayerDataToDisplay, setResearchedPlayerDataToDisplay] = useState<PlayerData | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -49,6 +48,8 @@ const App: React.FC = () => {
   const [selectedDateForAudio, setSelectedDateForAudio] = useState<Date>(selectedDate);
 
   const [favoritePlayersMap, setFavoritePlayersMap] = useState<Record<string, boolean>>({});
+  const [favoritePlayersList, setFavoritePlayersList] = useState<FavoritePlayer[]>([]);
+
 
   const authContext = useAuth();
   const { currentUser, loading: authLoading, signOutUser } = authContext;
@@ -116,12 +117,14 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       getUserFavoritePlayers(currentUser.uid).then(favs => {
+        setFavoritePlayersList(favs);
         const favMap: Record<string, boolean> = {};
         favs.forEach(fav => favMap[fav.playerId] = true);
         setFavoritePlayersMap(favMap);
       });
     } else {
       setFavoritePlayersMap({});
+      setFavoritePlayersList([]);
     }
   }, [currentUser]);
 
@@ -176,7 +179,7 @@ const App: React.FC = () => {
   const loadData = useCallback(async (dateToLoad: Date, currentPlayerDataToPreserve?: PlayerData | null) => {
     setIsLoading(true);
     setError(null);
-    setResearchedPlayerDataToDisplay(null); // Clear researched player when loading main analytics
+    setResearchedPlayerDataToDisplay(null); 
     const dateKey = formatDateForKey(dateToLoad);
     const humanReadable = formatDateForDisplay(dateToLoad);
     let forceRefresh = false;
@@ -184,12 +187,14 @@ const App: React.FC = () => {
     try {
       const firestoreResult: FirestoreReportWithTimestamp | null = await getAnalysisReportFromFirestore(dateKey);
       let reportToSet: AnalysisReport | null = null;
+      let reportFetchedAt = new Date(); // Default to now
 
       if (firestoreResult) {
+        reportFetchedAt = firestoreResult.fetchedAt;
         const todayKey = formatDateForKey(new Date());
         if (dateKey === todayKey) {
           const now = new Date();
-          const dataAgeHours = (now.getTime() - firestoreResult.fetchedAt.getTime()) / (1000 * 60 * 60);
+          const dataAgeHours = (now.getTime() - reportFetchedAt.getTime()) / (1000 * 60 * 60);
           if (dataAgeHours > STALE_THRESHOLD_HOURS && now.getUTCHours() < REFRESH_CUTOFF_UTC_HOUR) {
             forceRefresh = true;
           }
@@ -200,12 +205,18 @@ const App: React.FC = () => {
       } else { forceRefresh = true; }
 
       if (forceRefresh) {
+        reportFetchedAt = new Date(); // Update fetchedAt for fresh Gemini pull
         const geminiData = await fetchAnalysisForDate(dateKey, humanReadable);
         reportToSet = geminiData;
         if (geminiData && geminiData.recommendations && geminiData.recommendations.length > 0) {
           saveAnalysisReportToFirestore(dateKey, geminiData)
             .catch(fsError => console.error("Failed to save report to Firestore in background:", fsError));
         }
+      }
+      
+      // Stamp fetchedAt onto individual recommendations
+      if (reportToSet && reportToSet.recommendations) {
+        reportToSet.recommendations.forEach(rec => rec.fetchedAt = reportFetchedAt);
       }
       
       setAnalysisData(reportToSet);
@@ -239,11 +250,11 @@ const App: React.FC = () => {
 
   const handleDateChange = (date: Date) => {
     setSelectedDate(date);
-    // If current view is researchedPlayer, switch to analytics for the new date
     if (currentView === 'researchedPlayer') {
         setCurrentView('analytics');
     }
     setIsFlyoutOpen(false);
+    setIsChatPanelOpen(false); // Close chat panel on date change
   };
   
   const handleMobileHeaderDateChange = (date: Date) => {
@@ -253,8 +264,9 @@ const App: React.FC = () => {
 
   const handlePlayerSelect = (player: PlayerData) => {
     setSelectedPlayer(player);
-    setResearchedPlayerDataToDisplay(null); // Clear researched player
-    setCurrentView('analytics'); // Ensure view is analytics
+    setResearchedPlayerDataToDisplay(null); 
+    setCurrentView('analytics'); 
+    setIsChatPanelOpen(false); // Close chat panel when a player is selected from main list
   };
   
   const openAuthModal = (triggeredFromView?: AppView) => {
@@ -263,8 +275,12 @@ const App: React.FC = () => {
   };
   
   const handleSetCurrentView = (view: AppView) => {
-    if (view !== 'researchedPlayer') {
+    if (view !== 'researchedPlayer' && view !== currentView) { // Only close if not staying on researched player
         setResearchedPlayerDataToDisplay(null);
+    }
+    // Auto-close chat panel when changing main views, unless specifically opening it or going to researched player
+    if (view !== 'researchedPlayer' && view !== currentView) { // if view changes and it's not TO researched player
+        setIsChatPanelOpen(false);
     }
     setCurrentView(view);
   };
@@ -272,18 +288,16 @@ const App: React.FC = () => {
   const ensureStructuredReport = async (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, forDateKey: string, forHumanReadableDate: string): Promise<PlayerData | null> => {
     const playerId = playerData.mlbId || playerData.player.toLowerCase().replace(/\s+/g, '-');
     
-    // Check main recommendations if analysisData is loaded and matches the forDateKey
-    // Only check main analysisData if selectedDate matches the date for the report.
     if (formatDateForKey(selectedDate) === forDateKey && analysisData) {
         const mainRec = analysisData.recommendations.find(p => (p.mlbId === playerId) || (p.player === playerData.player && p.team === playerData.team));
         if (mainRec && mainRec.playerSpecificVerdict) return mainRec;
     }
     
-    let report = await getAdditionalPlayerReport(forDateKey, playerId);
+    let report = await getAdditionalPlayerReport(forDateKey, playerId); // This should now return fetchedAt
     if (report) return report;
     
     console.log(`Report not found in cache for ${playerData.player} on ${forDateKey}, fetching from Gemini...`);
-    report = await fetchStructuredReportForPlayer(playerData.player, forDateKey, forHumanReadableDate);
+    report = await fetchStructuredReportForPlayer(playerData.player, forDateKey, forHumanReadableDate); // This will add fetchedAt
     if (report) {
       await saveAdditionalPlayerReport(forDateKey, playerId, report);
       return report;
@@ -293,7 +307,6 @@ const App: React.FC = () => {
 
   const handleSetPick = async (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => {
     if (!currentUser) { openAuthModal(currentView); return; }
-    // Use selectedDate from App state for consistency, not from a specific component's prop
     const dateKeyForPick = formatDateForKey(selectedDate);
     const humanReadableForPick = formatDateForDisplay(selectedDate);
 
@@ -307,7 +320,7 @@ const App: React.FC = () => {
       playerId: fullReport.mlbId || fullReport.player.toLowerCase().replace(/\s+/g, '-'),
       playerName: fullReport.player,
       team: fullReport.team,
-      source: 'researched', // This could be more dynamic if picks can be set from different contexts
+      source: 'researched', 
     };
 
     try {
@@ -326,7 +339,6 @@ const App: React.FC = () => {
     
     let fullReport: PlayerData | null = null;
     if (!isFav) {
-      // Use selectedDate from App state
       const dateKeyForFavorite = formatDateForKey(selectedDate);
       const humanReadableForFavorite = formatDateForDisplay(selectedDate);
       fullReport = await ensureStructuredReport(playerData, dateKeyForFavorite, humanReadableForFavorite);
@@ -341,14 +353,19 @@ const App: React.FC = () => {
             delete newMap[playerId];
             return newMap;
         });
+        setFavoritePlayersList(prevList => prevList.filter(p => p.playerId !== playerId));
         alert(`${playerData.player} removed from favorites.`);
       } else if (fullReport) {
-        await addPlayerToFavorites(currentUser.uid, {
-            player: fullReport.player,
+        const favToAdd: FavoritePlayer = {
+            playerId: playerId,
+            playerName: fullReport.player, // Corrected from 'player' to 'playerName'
             team: fullReport.team,
             mlbId: fullReport.mlbId,
-        });
+            addedAt: new Date() // Client-side addedAt, server will set its own
+        };
+        await addPlayerToFavorites(currentUser.uid, favToAdd);
         setFavoritePlayersMap(prev => ({ ...prev, [playerId]: true }));
+        setFavoritePlayersList(prevList => [...prevList, favToAdd]);
         alert(`${playerData.player} added to favorites!`);
       }
     } catch (e) { console.error("Error toggling favorite:", e); alert(`Failed to update favorites for ${playerData.player}.`); }
@@ -356,22 +373,17 @@ const App: React.FC = () => {
 
   const handleViewPlayerAnalytics = async (playerInfo: Pick<PlayerData, 'player' | 'team' | 'mlbId'>, dateForAnalysis: Date) => {
     setIsLoading(true);
-    setCurrentView('analytics'); // Switch view first
-    setSelectedDate(dateForAnalysis); // Set date for analytics
+    setIsChatPanelOpen(false); // Close chat when viewing analytics
+    setCurrentView('analytics'); 
+    setSelectedDate(dateForAnalysis); 
     
-    // loadData will be triggered by useEffect due to selectedDate/currentView change.
-    // We need to ensure the *specific player* is selected after data loads.
-    
-    // To select the specific player *after* loadData completes for the new date:
     const dateKey = formatDateForKey(dateForAnalysis);
     const humanReadable = formatDateForDisplay(dateForAnalysis);
 
-    // Ensure analysis for the date is loaded or reloaded
     if (!analysisData || formatDateForKey(selectedDate) !== dateKey || currentView !== 'analytics') {
-      await loadData(dateForAnalysis); // Wait for this to potentially update analysisData
+      await loadData(dateForAnalysis); 
     }
     
-    // Now, ensure the specific player report is fetched and set
     const fullReport = await ensureStructuredReport(playerInfo, dateKey, humanReadable);
     
     if (fullReport) {
@@ -379,17 +391,21 @@ const App: React.FC = () => {
         setResearchedPlayerDataToDisplay(null);
     } else {
         alert(`Could not load analysis for ${playerInfo.player}.`);
-        setSelectedPlayer(null); // Clear selected player if report fails
+        setSelectedPlayer(null); 
     }
     setIsLoading(false);
   };
   
   const handleDisplayResearchedPlayer = (playerData: PlayerData) => {
     setResearchedPlayerDataToDisplay(playerData);
-    setSelectedPlayer(null); // Clear main analytics player
-    setAnalysisData(null); // Clear main analytics report
+    setSelectedPlayer(null); 
+    setAnalysisData(null); 
     setCurrentView('researchedPlayer');
-    // The date for this researched player is implicitly the App's `selectedDate`
+    // Chat panel remains open when a researched player is displayed
+  };
+
+  const handleToggleChatPanel = () => {
+    setIsChatPanelOpen(prev => !prev);
   };
 
 
@@ -407,12 +423,12 @@ const App: React.FC = () => {
     mainContentArea = (
       <DashboardPage
         currentUser={currentUser}
-        selectedDate={selectedDate} // Dashboard operates on app's selectedDate
+        selectedDate={selectedDate} 
         onViewPlayerAnalytics={handleViewPlayerAnalytics}
-        onLogout={async () => { await signOutUser(); setCurrentView('landing');}}
-        favoritePlayers={[]} // This prop might need updating based on how favorites are managed globally or fetched by DashboardPage itself
+        onLogout={async () => { await signOutUser(); setCurrentView('landing'); setIsChatPanelOpen(false);}}
+        favoritePlayers={favoritePlayersList}
         handleToggleFavorite={handleToggleFavorite}
-        onDateChange={handleDateChange} // Allow dashboard to change app's selectedDate
+        onDateChange={handleDateChange} 
       />
     );
   } else if (currentView === 'analytics') {
@@ -481,7 +497,6 @@ const App: React.FC = () => {
   } else if (isLoading && (currentView === 'dashboard' || currentView === 'researchedPlayer')) {
       mainContentArea = <div className="flex-1 flex items-center justify-center"><Loader message="Loading content..." /></div>;
   } else {
-      // Fallback for unexpected view state or no user for dashboard
       mainContentArea = <div className="flex-1 flex items-center justify-center p-8 text-center"><p className="text-[var(--text-secondary)]">Please select a view or log in.</p></div>;
   }
 
@@ -505,9 +520,9 @@ const App: React.FC = () => {
           currentView={currentView}
           onSetView={handleSetCurrentView}
           currentUser={currentUser}
-          onLogout={async () => { await signOutUser(); handleSetCurrentView('landing');}}
+          onLogout={async () => { await signOutUser(); handleSetCurrentView('landing'); setIsChatPanelOpen(false);}}
           onOpenAuthModal={() => openAuthModal()}
-          // onOpenResearchChat is removed
+          onToggleChatPanel={handleToggleChatPanel}
         />
         <MobileHeader
           selectedDate={selectedDateForAudio}
@@ -515,7 +530,7 @@ const App: React.FC = () => {
           onDateChange={handleMobileHeaderDateChange}
           maxDate={maxDate}
           className="md:hidden sticky top-0 z-30 bg-[var(--sidebar-bg)] shadow-md"
-          onLogoClick={currentUser ? () => handleSetCurrentView('dashboard') : () => handleSetCurrentView('landing')}
+          onLogoClick={currentUser ? () => {handleSetCurrentView('dashboard'); setIsChatPanelOpen(false);} : () => {handleSetCurrentView('landing'); setIsChatPanelOpen(false);}}
           isAudioPlaying={isAudioPlaying}
           isAudioLoading={isAudioLoading}
           audioError={audioError}
@@ -530,29 +545,29 @@ const App: React.FC = () => {
           isLoading={isLoading}
           maxDate={maxDate}
           className="md:hidden"
-          onNavigateToDashboard={currentUser ? () => {handleSetCurrentView('dashboard'); setIsFlyoutOpen(false);} : undefined}
+          onNavigateToDashboard={currentUser ? () => {handleSetCurrentView('dashboard'); setIsFlyoutOpen(false); setIsChatPanelOpen(false);} : undefined}
           onOpenAuthModal={() => {setIsFlyoutOpen(false); openAuthModal(currentView);}}
-          // onOpenResearchChat is removed
           currentUser={currentUser}
           favoritePlayersMap={favoritePlayersMap}
           onSetPick={handleSetPick}
           onToggleFavorite={handleToggleFavorite}
+          onCloseChatPanel={() => setIsChatPanelOpen(false)}
         />
         
-        {/* ChatPanel for Desktop */}
-        {currentUser && (
+        {currentUser && isChatPanelOpen && (
             <ChatPanel
-                className="hidden md:flex" // Show on desktop
+                className="hidden md:flex" 
                 selectedDate={selectedDate}
                 onDisplayResearchedPlayer={handleDisplayResearchedPlayer}
                 onSetPick={handleSetPick}
                 onToggleFavorite={handleToggleFavorite}
                 favoritePlayersMap={favoritePlayersMap} 
                 onOpenAuthModal={() => openAuthModal(currentView)} 
+                onClose={() => setIsChatPanelOpen(false)}
             />
         )}
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isChatPanelOpen && currentUser ? 'md:ml-0' : ''}`}>
           {mainContentArea}
         </div>
       </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
-import { FiSend, FiLoader, FiMessageSquare, FiUser, FiCpu, FiCheckSquare, FiHeart, FiAlertCircle, FiClipboard } from 'react-icons/fi';
+import { FiSend, FiLoader, FiMessageSquare, FiUser, FiCpu, FiCheckSquare, FiHeart, FiAlertCircle, FiClipboard, FiX } from 'react-icons/fi'; // Added FiX
 import { fetchPlayerResearchResponse, fetchStructuredReportForPlayer } from '@/services/geminiService';
 import { getAdditionalPlayerReport, saveAdditionalPlayerReport } from '@/services/firestoreService';
 import { addUserDailyPick, addPlayerToFavorites, removePlayerFromFavorites, isPlayerFavorite } from '@/services/userService';
@@ -16,6 +16,7 @@ interface ChatPanelProps {
   onToggleFavorite: (playerData: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
   favoritePlayersMap: Record<string, boolean>;
   onOpenAuthModal: () => void;
+  onClose: () => void; // Added onClose prop
 }
 
 interface ChatMessage {
@@ -66,12 +67,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onToggleFavorite,
   favoritePlayersMap,
   onOpenAuthModal,
+  onClose, // Destructure onClose
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuery, setCurrentQuery] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null); // playerId for loading state
+  const [actionLoading, setActionLoading] = useState<string | null>(null); 
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { currentUser } = useAuth();
@@ -106,7 +108,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     try {
       const aiResponseText = await fetchPlayerResearchResponse(queryForAi);
       const identifiedPlayerName = extractPlayerNameFromQuery(queryForAi) || extractPlayerNameFromQuery(aiResponseText);
-      let playerContext: ChatMessage['playerContext'] = undefined; // Explicitly typed and initialized
+      let playerContext: ChatMessage['playerContext'] = undefined;
       if (identifiedPlayerName) {
         playerContext = {
           name: identifiedPlayerName,
@@ -158,12 +160,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
   
   const createPlayerPickData = (playerContextParam: ChatMessage['playerContext']): Pick<PlayerData, 'player' | 'team' | 'mlbId'> => {
-    if (!playerContextParam || !playerContextParam.name) { // Renamed parameter to avoid conflict
+    if (!playerContextParam || !playerContextParam.name) { 
         throw new Error("Player context is undefined or missing name.");
     }
     return {
         player: playerContextParam.name,
-        team: playerContextParam.team || '', // Default to empty string if team is undefined
+        team: playerContextParam.team || '', 
         mlbId: playerContextParam.mlbId,
     };
   };
@@ -175,6 +177,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           <FiMessageSquare className="w-5 h-5 text-[var(--primary-glow)] mr-2" />
           <h2 className="text-lg font-[var(--font-display)] text-[var(--primary-glow)]">Player Research</h2>
         </div>
+        <button onClick={onClose} title="Close Chat Panel" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+          <FiX size={20} />
+        </button>
       </header>
 
       {actionError && (

@@ -91,6 +91,7 @@ export interface PlayerData {
     compositeHitProbability: number; 
   };
   playerSpecificVerdict?: string; 
+  fetchedAt?: Date; // Timestamp for when this specific player data was fetched/generated
 }
 
 export interface HonorableMention {

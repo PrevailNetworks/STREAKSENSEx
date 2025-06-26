@@ -10,7 +10,7 @@ interface PrimaryNavigationProps {
   currentUser: FirebaseUser | null;
   onLogout: () => void;
   onOpenAuthModal: () => void;
-  // onOpenResearchChat prop is removed as ChatPanel is always visible or handled differently
+  onToggleChatPanel: () => void; // For toggling ChatPanel visibility
 }
 
 const NAV_COLLAPSED_WIDTH = "w-16";
@@ -22,6 +22,7 @@ export const PrimaryNavigation: React.FC<PrimaryNavigationProps> = ({
   currentUser,
   onLogout,
   onOpenAuthModal,
+  onToggleChatPanel,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
@@ -52,11 +53,11 @@ export const PrimaryNavigation: React.FC<PrimaryNavigationProps> = ({
   const navWidthClass = isExpanded ? NAV_EXPANDED_WIDTH : NAV_COLLAPSED_WIDTH;
 
   const NavItem: React.FC<{
-    view?: AppView; // Optional: if it's an action item
+    view?: AppView; 
     icon: React.ReactNode;
     label: string;
     action?: () => void;
-    isActiveOverride?: boolean; // For items that don't map directly to a view but should appear active
+    isActiveOverride?: boolean; 
   }> = ({ view, icon, label, action, isActiveOverride }) => {
     const isActive = (view && currentView === view && !action) || isActiveOverride;
     const handleClick = () => {
@@ -117,26 +118,13 @@ export const PrimaryNavigation: React.FC<PrimaryNavigationProps> = ({
         {currentUser && (
             <NavItem view="dashboard" icon={<FiGrid />} label="My Dashboard" />
         )}
-        <NavItem view="analytics" icon={<FiBarChart2 />} label="Player Analytics" />
-        {/* Research AI NavItem: Becomes active if currentView is 'researchedPlayer' or if ChatPanel is focused.
-            For now, clicking it doesn't change the main view if ChatPanel is always present.
-            It could potentially toggle visibility of ChatPanel if we add that feature.
-        */}
+        <NavItem view="analytics" icon={<FiBarChart2 />} label="THE FIVE" />
         {currentUser && (
             <NavItem 
                 icon={<FiMessageSquare />} 
                 label="Player Research" 
-                isActiveOverride={currentView === 'researchedPlayer'}
-                // Action could be to focus chat panel or ensure 'researchedPlayer' view if it implies specific main content
-                action={() => {
-                  // If chat panel can be collapsed/expanded, toggle it.
-                  // For now, if a researched player is shown, this link can navigate back or do nothing.
-                  // If not showing a researched player, clicking this could clear main content to focus on chat input.
-                  if (currentView !== 'researchedPlayer') {
-                    // This could set view to 'researchedPlayer' with no specific player, showing a prompt in MainDisplay.
-                    // onSetView('researchedPlayer'); // Example, needs definition for this state in App.tsx
-                  }
-                }}
+                action={onToggleChatPanel} // Action to toggle chat panel
+                // isActiveOverride could be set based on if chat panel is open
             />
         )}
       </div>

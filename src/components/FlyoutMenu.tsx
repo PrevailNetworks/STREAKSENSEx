@@ -3,7 +3,6 @@ import React, { useState }  from 'react';
 import { FiX, FiCalendar, FiLogIn, FiLogOut, FiUser, FiList, FiGrid, FiMessageSquare } from 'react-icons/fi';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from './AuthModal';
-// AudioPlayer is removed from FlyoutMenu
 import type { AnalysisReport, HonorableMention, PlayerData } from '../types';
 import { Loader } from './Loader';
 import { RecommendationItem } from './AnalyticsContextualPanel';
@@ -20,11 +19,11 @@ interface FlyoutMenuProps {
   className?: string;
   onNavigateToDashboard?: () => void;
   onOpenAuthModal: () => void;
-  // onOpenResearchChat: () => void; // Removed
   currentUser: FirebaseUser | null;
   favoritePlayersMap: Record<string, boolean>;
   onSetPick: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
   onToggleFavorite: (player: Pick<PlayerData, 'player' | 'team' | 'mlbId'>) => Promise<void>;
+  onCloseChatPanel: () => void; // Added prop
 }
 
 export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
@@ -38,11 +37,11 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
   className,
   onNavigateToDashboard,
   onOpenAuthModal,
-  // onOpenResearchChat, // Removed
   currentUser,
   favoritePlayersMap,
   onSetPick,
-  onToggleFavorite
+  onToggleFavorite,
+  onCloseChatPanel, // Destructure prop
 }) => {
   const { signOutUser, loading: authLoading } = useAuth();
   const [isAuthModalOpenForFlyout, setIsAuthModalOpenForFlyout] = useState(false);
@@ -53,18 +52,27 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
     if (dateValue) {
       const [year, month, day] = dateValue.split('-').map(Number);
       const newSelectedDate = new Date(year, month - 1, day, selectedDate.getHours(), selectedDate.getMinutes());
-      onDateChange(newSelectedDate);
+      onDateChange(newSelectedDate); // This will also close chat panel via App.tsx logic
     }
   };
   
   const handleSignOut = async () => {
     await signOutUser();
+    onCloseChatPanel(); // Close chat on sign out
     onClose();
   };
 
   const handleOpenAuthFromFlyout = () => {
-    onClose();
-    onOpenAuthModal();
+    onClose(); // Close flyout first
+    onOpenAuthModal(); // Open main auth modal
+  }
+  
+  const handleNavigateToDashboard = () => {
+    if (onNavigateToDashboard) {
+        onNavigateToDashboard();
+        onCloseChatPanel(); // Also close chat panel
+        onClose(); // Close flyout
+    }
   }
   
   const relevantHonorableData = (h: HonorableMention): Pick<PlayerData, 'player' | 'team' | 'mlbId' | 'finalVerdict'> => ({
@@ -99,7 +107,7 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
           {currentUser && onNavigateToDashboard && (
             <section>
                  <button
-                    onClick={() => { onNavigateToDashboard(); onClose(); }}
+                    onClick={handleNavigateToDashboard}
                     className="w-full flex items-center justify-center bg-[var(--card-bg)] text-[var(--primary-glow)] px-3 py-3 rounded-md text-sm font-semibold hover:bg-[var(--selected-item-bg)] transition-colors"
                 >
                     <FiGrid className="mr-2"/> My Dashboard
@@ -123,9 +131,6 @@ export const FlyoutMenu: React.FC<FlyoutMenuProps> = ({
               />
             </div>
           </section>
-
-          {/* Player Research AI button removed from here, as ChatPanel is persistent on desktop */}
-          {/* Consider if a mobile-specific way to access chat is needed later, or if it's desktop-only for now */}
 
           {analysisData?.watchListCautionaryNotes && (
             <section>

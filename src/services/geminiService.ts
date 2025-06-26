@@ -176,6 +176,7 @@ export const fetchAnalysisForDate = async (date: string, humanReadableDate: stri
       if (parsedData.recommendations && parsedData.recommendations.some(p => !p.playerSpecificVerdict || p.playerSpecificVerdict.length < 50)) {
          console.warn("Some recommendations have very short or missing 'playerSpecificVerdict'.", parsedData.recommendations.map(p=> ({player: p.player, verdictLength: p.playerSpecificVerdict?.length || 0 })));
       }
+      // App.tsx will now handle stamping fetchedAt on recommendations
       return parsedData;
     } catch (e) {
       console.error("Failed to parse JSON analysis response:", e);
@@ -340,14 +341,13 @@ export const fetchStructuredReportForPlayer = async (playerName: string, date: s
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
-        temperature: 0.5, // Slightly higher for more detailed generation for single player
+        temperature: 0.5, 
       },
     });
 
     let jsonText = result.text;
     if (!jsonText) {
       console.error(`Received empty response from AI for structured report of ${playerName}.`);
-      // Add more diagnostics if needed, similar to fetchAnalysisForDate
       if (result && result.candidates && result.candidates.length > 0 && result.candidates[0].finishReason !== 'STOP') {
         throw new Error(`AI structured report generation for ${playerName} stopped prematurely: ${result.candidates[0].finishReason}`);
       }
@@ -368,11 +368,12 @@ export const fetchStructuredReportForPlayer = async (playerName: string, date: s
     
     try {
       const parsedData: PlayerData = JSON.parse(jsonText);
-      // Basic validation
       if (!parsedData.player || !parsedData.finalVerdict) {
         console.warn(`Parsed structured report for ${playerName} is missing key fields.`, parsedData);
         return null;
       }
+      // Add fetchedAt timestamp
+      parsedData.fetchedAt = new Date();
       console.log(`Successfully fetched and parsed structured report for ${playerName}`);
       return parsedData;
     } catch (e) {
@@ -382,7 +383,6 @@ export const fetchStructuredReportForPlayer = async (playerName: string, date: s
     }
   } catch (error) {
     console.error(`Error fetching structured report for ${playerName} from Gemini:`, error);
-    // Handle error similar to fetchAnalysisForDate
-    throw error; // Re-throw to be handled by caller
+    throw error; 
   }
 };

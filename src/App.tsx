@@ -471,7 +471,7 @@ const App: React.FC = () => {
     );
   } else if (currentView === 'analytics') {
     mainContentArea = (
-      <div className="flex flex-row flex-1 overflow-hidden">
+      <div className="flex flex-row flex-1 overflow-hidden"> {/* This div itself should not scroll, its children will */}
         <AnalyticsContextualPanel
           selectedDate={selectedDate}
           onDateChange={handleDateChange}
@@ -480,14 +480,15 @@ const App: React.FC = () => {
           selectedPlayerId={selectedPlayer?.mlbId || selectedPlayer?.player}
           isLoading={isLoading}
           maxDate={maxDate}
-          className="hidden md:flex md:flex-col"
+          className="hidden md:flex md:flex-col" // flex-shrink-0 is implied by fixed width
           currentUser={currentUser}
           favoritePlayersMap={favoritePlayersMap}
           onSetPick={handleSetPick}
           onToggleFavorite={handleToggleFavorite}
           onOpenAuthModal={() => openAuthModal(currentView)}
         />
-        <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area">
+        {/* This is the div that should contain the main scrollable content for analytics */}
+        <div className="flex-1 flex flex-col overflow-y-auto" id="main-content-scroll-area"> 
           <MobilePlayerPicker
             analysisData={analysisData}
             onPlayerSelect={handlePlayerSelect}
@@ -528,6 +529,7 @@ const App: React.FC = () => {
     );
   } else if (currentView === 'researchedPlayer' && researchedPlayerDataToDisplay) {
       mainContentArea = (
+        // This view also needs to be wrapped in a scrollable container if its content can exceed viewport
         <div className="flex-1 flex flex-col overflow-y-auto p-4 sm:p-6 lg:p-8 bg-[var(--main-bg)]">
             <MainDisplay player={researchedPlayerDataToDisplay} reportDate={formatDateForDisplay(selectedDate)} />
         </div>
@@ -535,7 +537,8 @@ const App: React.FC = () => {
   } else if (isLoading && (currentView === 'dashboard' || currentView === 'researchedPlayer')) {
       mainContentArea = <div className="flex-1 flex items-center justify-center"><Loader message="Loading content..." /></div>;
   } else {
-      mainContentArea = <div className="flex-1 flex items-center justify-center p-8 text-center"><p className="text-[var(--text-secondary)]">Please select a view or log in.</p></div>;
+      // Default placeholder if no specific view matches or data is missing
+      mainContentArea = <div className="flex-1 flex items-center justify-center p-8 text-center"><p className="text-[var(--text-secondary)]">Please select a view or log in to access content.</p></div>;
   }
 
 
@@ -553,7 +556,8 @@ const App: React.FC = () => {
   
   return (
     <>
-      <div className="min-h-screen bg-[var(--sidebar-bg)] font-[var(--font-body)] flex flex-col md:flex-row">
+      {/* Outermost container: h-screen and overflow-hidden to prevent body scroll */}
+      <div className="h-screen overflow-hidden bg-[var(--sidebar-bg)] font-[var(--font-body)] flex flex-col md:flex-row">
         <PrimaryNavigation
           currentView={currentView}
           onSetView={handleSetCurrentView}
@@ -596,7 +600,7 @@ const App: React.FC = () => {
         
         {currentUser && isChatPanelOpen && (
             <ChatPanel
-                className="hidden md:flex flex-shrink-0" // Add flex-shrink-0
+                className="hidden md:flex flex-shrink-0" 
                 selectedDate={selectedDate}
                 onDisplayResearchedPlayer={handleDisplayResearchedPlayer}
                 onSetPick={handleSetPick}
@@ -607,7 +611,8 @@ const App: React.FC = () => {
             />
         )}
 
-        <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out`}> {/* Removed ml adjustment based on ChatPanelOpen */}
+        {/* This div now becomes the main scrollable area for content next to fixed sidebars */}
+        <div className={`flex-1 flex flex-col overflow-y-auto`}> 
           {mainContentArea}
         </div>
       </div>
